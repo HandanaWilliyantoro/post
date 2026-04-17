@@ -5,6 +5,7 @@ import * as Yup from "yup";
 
 import PrimaryButton from "@/components/PrimaryButton";
 import ProgressBar from "@/components/ProgressBar";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 
 const metricDefinitions = [
   {
@@ -54,6 +55,51 @@ const MetricChartCard = memo(function MetricChartCard({
     </button>
   );
 });
+
+function KickScanAccountCard({ row, onCopy }) {
+  const urls = Array.isArray(row?.urls) ? row.urls : [];
+
+  return (
+    <article className="campaign-scan-account-card">
+      <div className="campaign-scan-account-top">
+        <div>
+          <p className="campaign-scan-account-name">{row?.username || "Unknown"}</p>
+          <p className="campaign-scan-account-meta">
+            {urls.length} new post{urls.length === 1 ? "" : "s"}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="campaign-scan-account-copy"
+          onClick={() => onCopy(row?.line || "")}
+          disabled={!row?.line}
+        >
+          Copy line
+        </button>
+      </div>
+
+      {urls.length ? (
+        <div className="campaign-scan-link-grid">
+          {urls.map((url, index) => (
+            <a
+              key={`${row?.username || "account"}-${index}`}
+              className="campaign-scan-link-chip"
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              title={url}
+            >
+              Post {index + 1}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="campaign-scan-account-empty">No new posts in the last 24 hours.</p>
+      )}
+    </article>
+  );
+}
 
 function BulkPublishProgressModal({ progress, onClose }) {
   if (!progress) {
@@ -105,7 +151,7 @@ function BulkPublishProgressModal({ progress, onClose }) {
             <div className="dashboard-stat-card">
               <p className="dashboard-stat-label">Start Date</p>
               <p className="dashboard-stat-value">
-                {progress.startDate || "—"}
+                {progress.startDate || "-"}
               </p>
             </div>
             <div className="dashboard-stat-card">
@@ -118,7 +164,7 @@ function BulkPublishProgressModal({ progress, onClose }) {
 
           <div className="campaign-progress-path">
             <p className="dashboard-stat-label">Folder Path</p>
-            <p className="campaign-progress-path-value">{progress.videoDir || "—"}</p>
+            <p className="campaign-progress-path-value">{progress.videoDir || "-"}</p>
           </div>
 
           {progress.error ? (
@@ -138,12 +184,81 @@ export default function CampaignOverview({ campaign }) {
   const [pendingMetricKey, setPendingMetricKey] = useState(null);
   const [schedulerError, setSchedulerError] = useState("");
   const [schedulerSuccess, setSchedulerSuccess] = useState("");
-  const [autoClipsError, setAutoClipsError] = useState("");
-  const [autoClipsSuccess, setAutoClipsSuccess] = useState("");
-  const [autoClipsResult, setAutoClipsResult] = useState(null);
   const [progress, setProgress] = useState(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanError, setScanError] = useState("");
+  const [scanResult, setScanResult] = useState(null);
   const isPending = pendingMetricKey !== null;
+
+  useEffect(() => {
+    if (schedulerError) {
+      showErrorSnackbar(schedulerError);
+    }
+  }, [schedulerError]);
+
+  useEffect(() => {
+    if (schedulerSuccess) {
+      showSuccessSnackbar(schedulerSuccess);
+    }
+  }, [schedulerSuccess]);
+
+  useEffect(() => {
+    if (scanError) {
+      showErrorSnackbar(scanError, { autoHideDuration: 6000 });
+    }
+  }, [scanError]);
+
+  useEffect(() => {
+    if (!scanLoading) {
+      setScanProgress(0);
+      return;
+    }
+
+    setScanProgress(8);
+
+    const intervalId = window.setInterval(() => {
+      setScanProgress((current) => {
+        if (current >= 92) {
+          return current;
+        }
+
+        const next = current + Math.max(4, Math.round((100 - current) * 0.12));
+        return Math.min(next, 92);
+      });
+    }, 700);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [scanLoading]);
+
+  async function loadProgress(openModal = false) {
+    setProgressLoading(true);
+    setSchedulerError("");
+
+    try {
+      const response = await fetch("/api/bulk-publish");
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to load progress");
+      }
+
+      const nextProgress = payload.data;
+      setProgress(nextProgress);
+
+      if (openModal) {
+        setShowProgressModal(true);
+      }
+    } catch (error) {
+      setSchedulerError(error.message || "Failed to load progress");
+    } finally {
+      setProgressLoading(false);
+    }
+  }
 
   const openDetails = (metricKey) => {
     if (isPending) {
@@ -217,62 +332,58 @@ export default function CampaignOverview({ campaign }) {
     (progress?.status === "queued" || progress?.status === "running");
   const isAnyJobActive =
     progress?.status === "queued" || progress?.status === "running";
-  const supportsBulkPublish = campaign.slug === "lospollostv-campaign";
-  const supportsAutoClips = !supportsBulkPublish;
+  const supportsBulkPublish = campaign.slug !== "kick-campaign";
+  const supportsKickScan = campaign.slug === "kick-campaign";
 
-  const autoClipsFormik = useFormik({
-    initialValues: {
-      youtubeUrl: "",
-      videoFile: null,
-    },
-    validationSchema: Yup.object({
-      youtubeUrl: Yup.string().test(
-        "youtube-or-file",
-        "Provide a YouTube URL or upload a file",
-        function validate(value) {
-          return Boolean(String(value || "").trim() || this.parent.videoFile);
-        }
-      ),
-      videoFile: Yup.mixed().nullable(),
-    }),
-    onSubmit: async (values, helpers) => {
-      setAutoClipsError("");
-      setAutoClipsSuccess("");
-      setAutoClipsResult(null);
+  async function runKickScan() {
+    setScanLoading(true);
+    setScanProgress(8);
+    setScanError("");
 
-      try {
-        const formData = new FormData();
-        formData.append("campaignSlug", campaign.slug);
+    try {
+      const response = await fetch("/api/kick-scan", {
+        method: "POST",
+      });
+      const payload = await response.json();
 
-        if (values.youtubeUrl) {
-          formData.append("youtubeUrl", values.youtubeUrl);
-        }
-
-        if (values.videoFile) {
-          formData.append("videoFile", values.videoFile);
-        }
-
-        const response = await fetch("/api/auto-clips", {
-          method: "POST",
-          body: formData,
-        });
-        const payload = await response.json();
-
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || "Failed to generate auto clips");
-        }
-
-        setAutoClipsSuccess(
-          `Generated ${payload?.moments?.length || 0} clips and scheduled their posts from ${payload.outputDir}.`
-        );
-        setAutoClipsResult(payload);
-      } catch (error) {
-        setAutoClipsError(error.message || "Failed to generate auto clips");
-      } finally {
-        helpers.setSubmitting(false);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to scan accounts");
       }
-    },
-  });
+
+      setScanProgress(100);
+      setScanResult(payload.data);
+    } catch (error) {
+      setScanError(error.message || "Failed to scan accounts");
+    } finally {
+      window.setTimeout(() => {
+        setScanLoading(false);
+      }, 250);
+    }
+  }
+
+  async function copyScanOutput() {
+    if (!scanResult?.output) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(scanResult.output);
+    } catch {
+      setScanError("Failed to copy output");
+    }
+  }
+
+  async function copyScanLine(line) {
+    if (!line) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(line);
+    } catch {
+      setScanError("Failed to copy output");
+    }
+  }
 
   return (
     <section className="campaign-overview">
@@ -316,9 +427,9 @@ export default function CampaignOverview({ campaign }) {
               <button
                 type="button"
                 className="dashboard-badge dashboard-badge-accent campaign-progress-trigger"
-                onClick={() => setShowProgressModal(true)}
+                onClick={() => loadProgress(true)}
               >
-                View progress
+                {progressLoading ? "Loading..." : "View progress"}
               </button>
             ) : null}
           </div>
@@ -390,103 +501,112 @@ export default function CampaignOverview({ campaign }) {
         </section>
       ) : null}
 
-      {supportsAutoClips ? (
-        <section className="dashboard-card campaign-scheduler-card">
+      {supportsKickScan ? (
+        <section className="dashboard-card campaign-scan-card">
           <div className="dashboard-card-header">
             <div>
-              <p className="dashboard-section-label">Auto Clips</p>
-              <h3 className="dashboard-card-title">Analyze and download moments</h3>
+              <p className="dashboard-section-label">Scan</p>
+              <h3 className="dashboard-card-title">Recent Instagram posts</h3>
             </div>
           </div>
 
-          <form
-            className="campaign-scheduler-form"
-            onSubmit={autoClipsFormik.handleSubmit}
-          >
-            <label className="campaign-scheduler-field campaign-scheduler-field-wide">
-              <span className="detail-form-label">YouTube Video URL</span>
-              <input
-                className="detail-form-input"
-                name="youtubeUrl"
-                value={autoClipsFormik.values.youtubeUrl}
-                onChange={autoClipsFormik.handleChange}
-                onBlur={autoClipsFormik.handleBlur}
-                placeholder="https://www.youtube.com/watch?v=..."
-              />
-            </label>
+          <div className="campaign-scan-actions">
+            <PrimaryButton
+              className="dashboard-button-inline detail-action-button"
+              type="button"
+              onClick={runKickScan}
+              disabled={scanLoading}
+            >
+              {scanLoading ? "Scanning..." : "Scan kick accounts"}
+            </PrimaryButton>
 
-            <label className="campaign-scheduler-field campaign-scheduler-field-wide">
-              <span className="detail-form-label">Upload File</span>
-              <input
-                className="detail-form-input"
-                name="videoFile"
-                type="file"
-                accept="video/*"
-                onChange={(event) =>
-                  autoClipsFormik.setFieldValue(
-                    "videoFile",
-                    event.currentTarget.files?.[0] || null
-                  )
-                }
-                onBlur={() => autoClipsFormik.setFieldTouched("videoFile", true)}
-              />
-            </label>
-
-            {autoClipsFormik.touched.youtubeUrl && autoClipsFormik.errors.youtubeUrl ? (
-              <p className="detail-form-message detail-form-message-error">
-                {autoClipsFormik.errors.youtubeUrl}
-              </p>
-            ) : null}
-
-            {autoClipsError ? (
-              <p className="detail-form-message detail-form-message-error">
-                {autoClipsError}
-              </p>
-            ) : null}
-
-            {autoClipsSuccess ? (
-              <p className="detail-form-message detail-form-message-success">
-                {autoClipsSuccess}
-              </p>
-            ) : null}
-
-            <div className="detail-modal-actions">
-              <PrimaryButton
-                className="dashboard-button-inline detail-action-button"
-                type="submit"
-                disabled={autoClipsFormik.isSubmitting}
+            {scanResult?.output ? (
+              <button
+                type="button"
+                className="campaign-scan-copy"
+                onClick={copyScanOutput}
               >
-                {autoClipsFormik.isSubmitting ? "Generating..." : "Generate auto clips"}
-              </PrimaryButton>
-            </div>
-          </form>
+                Copy output
+              </button>
+            ) : null}
 
-          {autoClipsResult?.moments?.length ? (
-            <div className="campaign-auto-clips-results">
-              <p className="dashboard-section-label">Downloaded Clips</p>
-              <div className="campaign-auto-clips-list">
-                {autoClipsResult.moments.map((moment, index) => (
-                  <article key={`${moment.title}-${index}`} className="campaign-auto-clips-item">
-                    <div className="campaign-auto-clips-head">
-                      <h4 className="campaign-auto-clips-title">{moment.title}</h4>
-                      <span className="campaign-auto-clips-score">
-                        Viral {moment.viral_score}
-                      </span>
-                    </div>
-                    <p className="campaign-auto-clips-meta">
-                      {moment.start_time} - {moment.end_time}
-                    </p>
-                    <p className="campaign-auto-clips-path">{moment.output_path}</p>
-                  </article>
+            {scanResult?.csv ? (
+              <a className="campaign-scan-copy" href="/api/kick-scan?format=csv">
+                Download CSV
+              </a>
+            ) : null}
+          </div>
+
+          {scanLoading ? <ProgressBar percentage={scanProgress} /> : null}
+
+          {scanError ? (
+            <p className="detail-form-message detail-form-message-error">
+              {scanError}
+            </p>
+          ) : null}
+
+          {scanResult ? (
+            <div className="campaign-scan-results">
+              <div className="campaign-scan-stats">
+                <div className="dashboard-stat-card">
+                  <p className="dashboard-stat-label">Scanned Accounts</p>
+                  <p className="dashboard-stat-value">
+                    {scanResult.scannedAccounts || 0}
+                  </p>
+                </div>
+                <div className="dashboard-stat-card">
+                  <p className="dashboard-stat-label">New Posts</p>
+                  <p className="dashboard-stat-value">
+                    {scanResult.totalNewPosts || 0}
+                  </p>
+                </div>
+                <div className="dashboard-stat-card">
+                  <p className="dashboard-stat-label">Accounts With Hits</p>
+                  <p className="dashboard-stat-value">
+                    {(scanResult.accountRows || []).filter((row) => row?.urls?.length).length}
+                  </p>
+                </div>
+              </div>
+
+              <div className="campaign-scan-output-shell">
+                <div className="campaign-scan-output-header">
+                  <span className="detail-form-label">Output</span>
+                  <span className="campaign-scan-output-copy">
+                    {scanResult.totalNewPosts || 0} total links
+                  </span>
+                </div>
+
+                <div className="campaign-scan-output-preview">
+                  {scanResult.output || "No posts published in the last 24 hours."}
+                </div>
+              </div>
+
+              <div className="campaign-scan-account-list">
+                {(scanResult.accountRows || []).map((row) => (
+                  <KickScanAccountCard
+                    key={row.username}
+                    row={row}
+                    onCopy={copyScanLine}
+                  />
                 ))}
               </div>
+
+              {Array.isArray(scanResult.errors) && scanResult.errors.length ? (
+                <p className="detail-form-message detail-form-message-error">
+                  Failed accounts:{" "}
+                  {scanResult.errors
+                    .map((entry) => entry?.username)
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </section>
       ) : null}
 
       {isPending ? (
-        <p className="campaign-detail-hint">Opening details…</p>
+        <p className="campaign-detail-hint">Opening details...</p>
       ) : (
         <p className="campaign-detail-hint">
           Tip: Click a chart card to drill into the underlying accounts or posts.

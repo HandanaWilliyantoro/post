@@ -15,7 +15,7 @@ function buildCountTrend(count, points) {
 }
 
 export async function getServerSideProps({ params }) {
-  const campaign = findCampaignBySlug(params?.slug);
+  const campaign = await findCampaignBySlug(params?.slug);
 
   if (!campaign) {
     return {

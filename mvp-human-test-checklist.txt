@@ -1,0 +1,92 @@
+MVP Human Test Checklist
+
+1. Campaign creation from the sidebar
+- Verify create flow works end-to-end.
+- Verify redirect to the new campaign.
+- Verify duplicate handling.
+- Verify sidebar refreshes correctly.
+- Verify the new campaign still exists after reload.
+
+2. Campaign overview metric cards
+- Verify navigation into accounts, posts, and queued details.
+- Verify counts are correct per campaign.
+
+3. Add account flow
+- Test valid account creation.
+- Test duplicate username rejection.
+- Test optional fields.
+- Verify the account is assigned to the correct campaign.
+
+4. Add post flow
+- Verify Add Post is disabled when no accounts are assigned.
+- Test successful post creation with video upload.
+- Verify the post targets all assigned accounts in that campaign.
+
+5. Queued posts table
+- Verify live PostOnce detail loading.
+- Verify inline publish_at editing.
+- Verify row action buttons.
+- Verify status display.
+- Verify assigned target rendering.
+
+6. Queued post delete
+- Confirm the row is removed locally.
+- Confirm the PostOnce post is deleted remotely.
+
+7. Queued post edit modal
+- Test caption update.
+- Test publish_at update.
+- Test preview rendering.
+- Test replace-video flow.
+- Verify old post deletion and new post creation both happen correctly.
+
+8. Bulk publish
+- For non-Kick campaigns, test form validation.
+- Test long-running execution.
+- Verify progress modal behavior.
+- Verify created posts follow each campaign cadence rule.
+
+9. Kick scan
+- Test scan start.
+- Verify button disabled state while scanning.
+- Verify progress bar behavior.
+- Test no-result state.
+- Test partial-failure state.
+- Verify output formatting.
+- Test copy actions.
+- Test CSV download.
+- Verify real Instagram accessibility from your machine.
+
+10. Snackbar error and success handling
+- Confirm failures and successes appear as snackbars for:
+- campaign creation
+- account creation
+- post creation
+- queued post edit
+- queued post delete
+- bulk publish
+- kick scan
+
+11. Scroll behavior
+- Verify the left sidebar stays sticky.
+- Verify main content scrolls independently.
+- Verify long scan output does not break layout.
+- Verify long pages do not break layout on your normal screen sizes.
+
+12. Timezone handling
+- Verify manual publish_at values are interpreted correctly in EST.
+- Verify edited publish_at values are interpreted correctly in EST.
+- Verify actual PostOnce scheduled times match expectation.
+
+13. Persistence and reload behavior
+- Reload after account creation and verify data remains correct.
+- Reload after post creation and verify data remains correct.
+- Reload after edit and verify data remains correct.
+- Reload after delete and verify data remains correct.
+- Reload after scan and verify data remains correct.
+- Reload after campaign creation and verify data remains correct.
+
+Highest live-risk areas
+- PostOnce create, edit, delete, and media behavior with the real token and media pipeline
+- Instagram scan reliability under rate limits or IP blocking
+- Bulk publish against real folders and real media uploads

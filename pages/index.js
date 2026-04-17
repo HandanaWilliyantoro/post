@@ -1,6 +1,8 @@
-import { campaignRoutes } from "@/lib/campaigns";
+import { getCampaignRoutes } from "@/lib/campaigns";
 
 export async function getServerSideProps() {
+  const campaignRoutes = await getCampaignRoutes();
+
   return {
     redirect: {
       destination: campaignRoutes[0].href,

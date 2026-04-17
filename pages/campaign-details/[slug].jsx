@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/router";
@@ -10,6 +11,11 @@ import { findCampaignBySlug } from "@/lib/campaigns";
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { listAllPosts } from "@/lib/post";
 import { isoToEasternDateTimeInput } from "@/lib/utils/easternTime";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
+
+const ReactPlayer = dynamic(() => import("react-player"), {
+  ssr: false,
+});
 
 function normalizeMetric(metric) {
   if (metric === "totalAccounts") return "totalAccounts";
@@ -127,7 +133,7 @@ const POST_FORM_DEFAULTS = {
 };
 
 export async function getServerSideProps({ params, query }) {
-  const campaign = findCampaignBySlug(params?.slug);
+  const campaign = await findCampaignBySlug(params?.slug);
 
   if (!campaign) {
     return { notFound: true };
@@ -188,6 +194,18 @@ export default function CampaignDetailsPage({
   const [deletingPostId, setDeletingPostId] = useState("");
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+
+  useEffect(() => {
+    if (formError) {
+      showErrorSnackbar(formError, { autoHideDuration: 6000 });
+    }
+  }, [formError]);
+
+  useEffect(() => {
+    if (formSuccess) {
+      showSuccessSnackbar(formSuccess);
+    }
+  }, [formSuccess]);
 
   const isAccountsView = metric === "totalAccounts";
   const title = isAccountsView
@@ -1041,11 +1059,15 @@ export default function CampaignDetailsPage({
             <div className="detail-modal-body detail-editor-body">
               <div className="detail-editor-preview">
                 {getPostPreviewSrc(editingPost) ? (
-                  <video
-                    className="detail-editor-video"
-                    src={getPostPreviewSrc(editingPost)}
-                    controls
-                  />
+                  <div className="detail-editor-player-shell">
+                    <ReactPlayer
+                      url={getPostPreviewSrc(editingPost)}
+                      controls
+                      width="100%"
+                      height="100%"
+                      className="detail-editor-player"
+                    />
+                  </div>
                 ) : (
                   <div className="detail-editor-empty">Preview unavailable</div>
                 )}

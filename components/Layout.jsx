@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
-import { campaignRoutes } from "@/lib/campaigns";
+import PrimaryButton from "@/components/PrimaryButton";
+import { defaultCampaignRoutes } from "@/lib/campaignDefaults";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 
 function CampaignIcon({ type }) {
   const commonProps = {
@@ -79,24 +83,128 @@ function SidebarToggleIcon({ collapsed }) {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
 function isActiveRoute(currentPath, href) {
   const pathOnly = String(currentPath || "").split("?")[0];
   return pathOnly === href || pathOnly.startsWith(`${href}/`);
 }
 
-export default function Layout({
-  children,
-  title = "Campaign Dashboard",
-}) {
+export default function Layout({ children, title = "Campaign Dashboard" }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [campaigns, setCampaigns] = useState(defaultCampaignRoutes);
+  const [showCreateCampaignModal, setShowCreateCampaignModal] = useState(false);
+  const [campaignError, setCampaignError] = useState("");
+  const [campaignSuccess, setCampaignSuccess] = useState("");
   const currentPath = router.asPath;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCampaigns() {
+      try {
+        const response = await fetch("/api/campaigns");
+        const payload = await response.json();
+
+        if (!response.ok || !payload?.success || cancelled) {
+          return;
+        }
+
+        setCampaigns(payload.data);
+      } catch {
+        // keep defaults if the request fails
+      }
+    }
+
+    void loadCampaigns();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (campaignError) {
+      showErrorSnackbar(campaignError);
+    }
+  }, [campaignError]);
+
+  useEffect(() => {
+    if (campaignSuccess) {
+      showSuccessSnackbar(campaignSuccess);
+    }
+  }, [campaignSuccess]);
+
+  const createCampaignFormik = useFormik({
+    initialValues: {
+      label: "",
+      description: "",
+      icon: "spark",
+    },
+    validationSchema: Yup.object({
+      label: Yup.string().trim().required("Campaign name is required"),
+      description: Yup.string().trim(),
+      icon: Yup.string().required("Icon is required"),
+    }),
+    onSubmit: async (values, helpers) => {
+      setCampaignError("");
+      setCampaignSuccess("");
+
+      try {
+        const response = await fetch("/api/campaigns", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || "Failed to create campaign");
+        }
+
+        setCampaigns((current) => [...current, payload.data]);
+        setCampaignSuccess("Campaign created.");
+        helpers.resetForm();
+        setShowCreateCampaignModal(false);
+        await router.push(payload.data.href);
+      } catch (error) {
+        setCampaignError(error.message || "Failed to create campaign");
+      } finally {
+        helpers.setSubmitting(false);
+      }
+    },
+  });
+
+  function closeCreateCampaignModal() {
+    setShowCreateCampaignModal(false);
+    setCampaignError("");
+    setCampaignSuccess("");
+    createCampaignFormik.resetForm();
+  }
 
   return (
     <div className="dashboard-shell h-screen overflow-hidden">
       <div className="mx-auto flex h-screen max-w-[1600px] overflow-hidden">
         <aside
-          className={`dashboard-sidebar campaign-sidebar relative h-screen shrink-0 overflow-hidden border-r border-white/10 px-4 py-6 transition-[width] duration-300 ease-out lg:px-5 lg:py-8 ${collapsed ? "w-[96px]" : "w-[320px]"}`}
+          className={`dashboard-sidebar campaign-sidebar sticky top-0 h-screen shrink-0 overflow-y-auto overflow-x-hidden border-r border-white/10 px-4 py-6 transition-[width] duration-300 ease-out lg:px-5 lg:py-8 ${collapsed ? "w-[96px]" : "w-[320px]"}`}
         >
           <button
             type="button"
@@ -110,7 +218,7 @@ export default function Layout({
 
           <div className="flex h-full flex-col">
             <nav className="mt-6 grid gap-3">
-              {campaignRoutes.map((campaign) => {
+              {campaigns.map((campaign) => {
                 const active = isActiveRoute(currentPath, campaign.href);
 
                 return (
@@ -133,15 +241,154 @@ export default function Layout({
                 );
               })}
             </nav>
+
+            <div className="mt-auto pt-4">
+              <button
+                type="button"
+                onClick={() => setShowCreateCampaignModal(true)}
+                className={`campaign-create-button ${collapsed ? "campaign-create-button-collapsed" : ""}`}
+                aria-label="Add campaign"
+                title="Add campaign"
+              >
+                <span className="campaign-nav-icon">
+                  <PlusIcon />
+                </span>
+                <span
+                  className={`campaign-nav-label ${collapsed ? "campaign-nav-label-hidden" : ""}`}
+                >
+                  Add Campaign
+                </span>
+              </button>
+            </div>
           </div>
         </aside>
 
-        <main className="flex-1 overflow-hidden px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-          <div className="dashboard-main-panel campaign-main-panel h-full rounded-[28px] p-6 sm:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <div className="dashboard-main-panel campaign-main-panel min-h-full rounded-[28px] p-6 sm:p-8">
             {children}
           </div>
         </main>
       </div>
+
+      {showCreateCampaignModal ? (
+        <div className="detail-modal-overlay" role="dialog" aria-modal="true">
+          <div className="detail-modal">
+            <div className="detail-modal-header">
+              <h3 className="detail-modal-title">Add campaign</h3>
+              <button
+                type="button"
+                className="detail-icon-button"
+                onClick={closeCreateCampaignModal}
+                aria-label="Close dialog"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="detail-modal-body">
+              <form
+                className="detail-account-form"
+                onSubmit={createCampaignFormik.handleSubmit}
+              >
+                <div className="detail-form-grid">
+                  <label className="detail-form-field detail-form-field-wide">
+                    <span className="detail-form-label">Campaign name</span>
+                    <input
+                      className="detail-form-input"
+                      name="label"
+                      value={createCampaignFormik.values.label}
+                      onChange={createCampaignFormik.handleChange}
+                      onBlur={createCampaignFormik.handleBlur}
+                      placeholder="My New Campaign"
+                      required
+                    />
+                  </label>
+
+                  <label className="detail-form-field">
+                    <span className="detail-form-label">Icon</span>
+                    <select
+                      className="detail-form-input"
+                      name="icon"
+                      value={createCampaignFormik.values.icon}
+                      onChange={createCampaignFormik.handleChange}
+                      onBlur={createCampaignFormik.handleBlur}
+                    >
+                      <option value="spark">Spark</option>
+                      <option value="play">Play</option>
+                      <option value="kick">Kick</option>
+                      <option value="debate">Debate</option>
+                      <option value="news">News</option>
+                    </select>
+                  </label>
+
+                  <label className="detail-form-field detail-form-field-wide">
+                    <span className="detail-form-label">Description</span>
+                    <textarea
+                      className="detail-form-input detail-form-textarea"
+                      name="description"
+                      rows={4}
+                      value={createCampaignFormik.values.description}
+                      onChange={createCampaignFormik.handleChange}
+                      onBlur={createCampaignFormik.handleBlur}
+                      placeholder="Describe what this campaign is for"
+                    />
+                  </label>
+                </div>
+
+                {createCampaignFormik.touched.label &&
+                createCampaignFormik.errors.label ? (
+                  <p className="detail-form-message detail-form-message-error">
+                    {createCampaignFormik.errors.label}
+                  </p>
+                ) : null}
+
+                {campaignError ? (
+                  <p className="detail-form-message detail-form-message-error">
+                    {campaignError}
+                  </p>
+                ) : null}
+
+                {campaignSuccess ? (
+                  <p className="detail-form-message detail-form-message-success">
+                    {campaignSuccess}
+                  </p>
+                ) : null}
+
+                <div className="detail-modal-actions">
+                  <PrimaryButton
+                    className="dashboard-button-inline"
+                    variant="ghost"
+                    onClick={closeCreateCampaignModal}
+                    type="button"
+                  >
+                    Cancel
+                  </PrimaryButton>
+                  <PrimaryButton
+                    className="dashboard-button-inline detail-action-button"
+                    type="submit"
+                    disabled={createCampaignFormik.isSubmitting}
+                  >
+                    {createCampaignFormik.isSubmitting
+                      ? "Creating..."
+                      : "Create campaign"}
+                  </PrimaryButton>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
