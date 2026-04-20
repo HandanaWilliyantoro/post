@@ -1,0 +1,13 @@
+
+@media (max-width: 980px) {
+  .detail-editor-body {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-editor-video,
+  .detail-editor-empty,
+  .detail-editor-player-shell,
+  .detail-editor-player {
+    min-height: 260px;
+  }
+}

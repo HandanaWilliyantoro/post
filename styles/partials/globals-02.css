@@ -1,0 +1,182 @@
+.campaign-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.campaign-top-header {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 1.5rem 1.35rem;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(234, 124, 77, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 249, 241, 0.72));
+}
+
+.campaign-top-title {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-poppins), "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.22;
+}
+
+.campaign-top-description {
+  max-width: 820px;
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-poppins), "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.campaign-charts-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  position: relative;
+}
+
+.campaign-chart-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 1rem;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 1.2rem;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.campaign-chart-card:disabled {
+  cursor: wait;
+}
+
+.campaign-chart-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(196, 93, 52, 0.22);
+  box-shadow: 0 18px 38px rgba(16, 33, 43, 0.08);
+}
+
+.campaign-chart-card-active {
+  border-color: rgba(196, 93, 52, 0.28);
+  box-shadow: 0 22px 48px rgba(196, 93, 52, 0.12);
+}
+
+.campaign-chart-card-loading {
+  transform: scale(0.985);
+  border-color: rgba(36, 154, 90, 0.28);
+  box-shadow: 0 24px 48px rgba(36, 154, 90, 0.16);
+}
+
+.campaign-chart-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.campaign-card-label {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.campaign-chart-value {
+  margin: 0.7rem 0 0;
+  font-size: 2.2rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.campaign-chart-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.campaign-chart-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  border-radius: 24px;
+  background: rgba(255, 251, 245, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.campaign-chart-spinner,
+.campaign-grid-loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 3px solid rgba(36, 154, 90, 0.18);
+  border-top-color: #249a5a;
+  animation: dashboard-spin 0.8s linear infinite;
+}
+
+.campaign-chart-loading-text {
+  color: rgba(24, 32, 38, 0.88);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.campaign-grid-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 26px;
+  background: rgba(247, 242, 232, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+.campaign-grid-loading-title {
+  margin: 0;
+  color: rgba(24, 32, 38, 0.94);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.campaign-grid-loading-copy {
+  margin: 0;
+  color: rgba(94, 106, 114, 0.92);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}

@@ -1,4 +1,5 @@
 import CampaignOverview from "@/components/CampaignOverview";
+import DeleteCampaignButton from "@/components/campaign/DeleteCampaignButton";
 import Layout from "@/components/Layout";
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
@@ -66,6 +67,9 @@ export async function getServerSideProps({ params }) {
 export default function CampaignPage({ campaign }) {
   return (
     <Layout title={campaign.label}>
+      <div className="mb-4 flex justify-end">
+        <DeleteCampaignButton campaign={campaign} />
+      </div>
       <CampaignOverview campaign={campaign} />
     </Layout>
   );

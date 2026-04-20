@@ -1,0 +1,180 @@
+
+.detail-targets-cell {
+  min-width: 240px;
+}
+
+.detail-target-pill {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  color: rgba(24, 32, 38, 0.88);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.detail-target-pill span {
+  border-radius: 999px;
+  background: rgba(24, 32, 38, 0.05);
+  padding: 0.18rem 0.45rem;
+}
+
+.detail-inline-date-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 200px;
+}
+
+.detail-inline-date-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 32, 38, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.48rem 0.6rem;
+  color: rgba(24, 32, 38, 0.92);
+  font-size: 0.82rem;
+}
+
+.detail-inline-save-button {
+  align-self: flex-start;
+  border: 1px solid rgba(36, 154, 90, 0.22);
+  border-radius: 999px;
+  background: rgba(36, 154, 90, 0.1);
+  color: rgba(21, 128, 61, 0.96);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.detail-inline-save-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.detail-strong {
+  font-weight: 650;
+  color: rgba(24, 32, 38, 0.96);
+}
+
+.detail-mono {
+  font-family: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84rem;
+  letter-spacing: -0.01em;
+  color: rgba(24, 32, 38, 0.78);
+}
+
+.detail-empty {
+  text-align: center;
+  padding: 2rem 1.2rem !important;
+  color: rgba(94, 106, 114, 0.95);
+  font-size: 0.95rem;
+}
+
+.detail-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(24, 32, 38, 0.1);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: rgba(24, 32, 38, 0.04);
+  color: rgba(24, 32, 38, 0.75);
+}
+
+.detail-pill-queued,
+.detail-pill-scheduled {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.22);
+  color: rgba(37, 99, 235, 0.92);
+}
+
+.detail-pill-processing,
+.detail-pill-partial {
+  background: rgba(234, 124, 77, 0.12);
+  border-color: rgba(234, 124, 77, 0.25);
+  color: rgba(196, 93, 52, 0.96);
+}
+
+.detail-pill-published {
+  background: rgba(90, 176, 126, 0.14);
+  border-color: rgba(90, 176, 126, 0.22);
+  color: rgba(45, 120, 74, 0.95);
+}
+
+.detail-pill-failed {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.22);
+  color: rgba(185, 28, 28, 0.95);
+}
+
+.detail-pill-cancelled {
+  background: rgba(24, 32, 38, 0.06);
+  border-color: rgba(24, 32, 38, 0.12);
+  color: rgba(24, 32, 38, 0.72);
+}
+
+.detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+  background: rgba(16, 33, 43, 0.55);
+  backdrop-filter: blur(10px);
+  z-index: 60;
+}
+
+.detail-modal {
+  width: min(500px, 100%);
+  max-height: calc(100vh - 3rem);
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(234, 124, 77, 0.2), transparent 45%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 239, 0.86));
+  box-shadow: 0 32px 80px rgba(16, 33, 43, 0.25);
+  overflow: hidden;
+}
+
+.detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.1rem 0.9rem;
+  border-bottom: 1px solid rgba(24, 32, 38, 0.08);
+}
+
+.detail-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgba(24, 32, 38, 0.92);
+}
+
+.detail-icon-button {
+  border: 1px solid rgba(24, 32, 38, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  color: rgba(24, 32, 38, 0.85);
+  border-radius: 16px;
+  padding: 0.45rem;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.detail-icon-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(16, 33, 43, 0.16);
+}
+
+.detail-modal-body {
+  padding: 1rem 1.1rem 1.1rem;
+}

@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cream: #f7f2e8;
+  --color-ink: #182026;
+  --color-muted: #5e6a72;
+  --color-border: rgba(24, 32, 38, 0.1);
+  --color-panel: rgba(255, 251, 245, 0.88);
+  --color-panel-muted: #f1eadf;
+  --color-sidebar: #10212b;
+  --color-sidebar-muted: rgba(232, 238, 241, 0.72);
+  --color-accent: #ea7c4d;
+  --color-accent-strong: #c45d34;
+  --color-accent-soft: #f4b183;
+  --color-progress-track: rgba(24, 32, 38, 0.08);
+  --shadow-panel: 0 24px 80px rgba(16, 33, 43, 0.14);
+  --scrollbar-track: rgba(24, 32, 38, 0.06);
+  --scrollbar-thumb: rgba(24, 32, 38, 0.28);
+  --scrollbar-thumb-hover: rgba(24, 32, 38, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(234, 124, 77, 0.14), transparent 28%),
+    linear-gradient(180deg, #f6efe3 0%, #efe7db 100%);
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-poppins), "Avenir Next", "Trebuchet MS", sans-serif;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.app-route-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247, 242, 232, 0.68);
+  backdrop-filter: blur(10px);
+}
+
+.app-route-loader-panel {
+  display: flex;
+  min-width: 240px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 28px;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(36, 154, 90, 0.12), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 239, 0.88));
+  box-shadow: 0 24px 60px rgba(16, 33, 43, 0.16);
+  padding: 1.35rem 1.5rem;
+  text-align: center;
+}
+
+.app-route-loader-spinner {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 3px solid rgba(36, 154, 90, 0.18);
+  border-top-color: #249a5a;
+  animation: dashboard-spin 0.8s linear infinite;
+}
+
+.app-route-loader-title {
+  margin: 0;
+  color: rgba(24, 32, 38, 0.96);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-route-loader-copy {
+  margin: 0;
+  color: rgba(94, 106, 114, 0.92);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.dashboard-shell {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(234, 124, 77, 0.17), transparent 22%),
+    radial-gradient(circle at 85% 12%, rgba(16, 33, 43, 0.08), transparent 26%),
+    linear-gradient(180deg, #f6efe3 0%, #ece1d1 100%);
+}
+
+.dashboard-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--color-sidebar);
+}
+
+.dashboard-main-panel {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 248, 239, 0.92)),
+    var(--color-panel);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-main-panel::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(24, 32, 38, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 32, 38, 0.03) 1px, transparent 1px);
+  background-size: 34px 34px;
+  content: "";
+  pointer-events: none;
+}
+
+.campaign-main-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 249, 241, 0.76)),
+    var(--color-panel);
+}
+

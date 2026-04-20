@@ -1,0 +1,181 @@
+
+@keyframes dashboard-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dashboard-badge {
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(234, 124, 77, 0.14);
+  color: var(--color-accent-soft);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  padding: 0.7rem 1rem;
+  text-transform: uppercase;
+}
+
+.dashboard-badge-light {
+  background: rgba(234, 124, 77, 0.12);
+  color: var(--color-accent-strong);
+}
+
+.dashboard-badge-accent {
+  background: rgba(234, 124, 77, 0.16);
+  color: var(--color-accent-strong);
+}
+
+.dashboard-nav-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  display: block;
+  padding: 1rem 1.1rem;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.dashboard-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateX(4px);
+}
+
+.dashboard-nav-item-active {
+  background: linear-gradient(135deg, rgba(234, 124, 77, 0.18), rgba(244, 177, 131, 0.05));
+  border-color: rgba(244, 177, 131, 0.35);
+}
+
+.sidebar-collapse-button {
+  position: absolute;
+  left: 12px;
+  top: 20px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: #10212b;
+  color: white;
+  box-shadow: 0 12px 22px rgba(16, 33, 43, 0.26);
+  cursor: pointer;
+}
+
+.campaign-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  min-height: 58px;
+  border-radius: 20px;
+  padding: 0.95rem 1rem;
+  color: white;
+  font-family: var(--font-poppins), "Avenir Next", "Trebuchet MS", sans-serif;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.campaign-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.campaign-nav-item-active {
+  background: linear-gradient(135deg, rgba(234, 124, 77, 0.15), rgba(244, 177, 131, 0.04));
+}
+
+.campaign-nav-item-collapsed {
+  justify-content: center;
+  min-height: auto;
+  padding: 0.3rem 0;
+  background: transparent;
+  transform: none;
+}
+
+.campaign-nav-item-collapsed:hover {
+  background: transparent;
+  transform: none;
+}
+
+.campaign-nav-item-collapsed.campaign-nav-item-active {
+  background: transparent;
+}
+
+.campaign-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-accent-soft);
+  flex-shrink: 0;
+}
+
+.campaign-nav-item-collapsed .campaign-nav-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.campaign-nav-item-collapsed.campaign-nav-item-active .campaign-nav-icon {
+  background: rgba(234, 124, 77, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(244, 177, 131, 0.22);
+}
+
+.campaign-create-button {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  width: 100%;
+  min-height: 58px;
+  border: 1px dashed rgba(244, 177, 131, 0.3);
+  border-radius: 20px;
+  padding: 0.95rem 1rem;
+  background: linear-gradient(135deg, rgba(234, 124, 77, 0.14), rgba(244, 177, 131, 0.04));
+  color: white;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.campaign-create-button:hover {
+  transform: translateX(4px);
+  border-color: rgba(244, 177, 131, 0.5);
+}
+
+.campaign-create-button-collapsed {
+  justify-content: center;
+  min-height: auto;
+  padding: 0.3rem 0;
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+
+.campaign-create-button-collapsed:hover {
+  transform: none;
+  border-color: transparent;
+}
+
+.campaign-nav-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  font-family: var(--font-poppins), "Avenir Next", "Trebuchet MS", sans-serif;
+  transition:
+    opacity 180ms ease,
+    width 180ms ease;
+}

@@ -1,0 +1,205 @@
+
+.detail-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.detail-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.detail-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 0.75rem 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.detail-form-field-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-form-label {
+  color: rgba(94, 106, 114, 0.95);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.detail-form-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 32, 38, 0.14);
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.7rem 0.8rem;
+  color: rgba(24, 32, 38, 0.92);
+  font-size: 0.88rem;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.detail-form-input:focus {
+  outline: none;
+  border-color: rgba(196, 93, 52, 0.45);
+  box-shadow: 0 0 0 4px rgba(234, 124, 77, 0.12);
+  transform: translateY(-1px);
+}
+
+.detail-form-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.detail-form-static {
+  display: flex;
+  align-items: center;
+  min-height: 43px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 32, 38, 0.1);
+  background: rgba(24, 32, 38, 0.04);
+  padding: 0.7rem 0.8rem;
+  color: rgba(24, 32, 38, 0.88);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.detail-form-static-wrap {
+  align-items: flex-start;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.detail-editor-modal {
+  width: min(1120px, 100%);
+}
+
+.detail-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+}
+
+.detail-editor-preview,
+.detail-editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.detail-editor-video,
+.detail-editor-empty {
+  width: 100%;
+  min-height: 420px;
+  border-radius: 24px;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  background: rgba(24, 32, 38, 0.92);
+}
+
+.detail-editor-video {
+  object-fit: contain;
+}
+
+.detail-editor-player-shell {
+  width: 100%;
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(234, 124, 77, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(16, 33, 43, 0.98), rgba(16, 33, 43, 0.92));
+}
+
+.detail-editor-player {
+  min-height: 420px;
+}
+
+.detail-editor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.95rem;
+}
+
+.detail-editor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.detail-editor-chip {
+  border-radius: 999px;
+  background: rgba(24, 32, 38, 0.06);
+  color: rgba(24, 32, 38, 0.82);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-form-message {
+  margin: 0;
+  border-radius: 16px;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.detail-form-message-error {
+  background: rgba(239, 68, 68, 0.09);
+  color: rgba(153, 27, 27, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
+.detail-form-message-success {
+  background: rgba(36, 154, 90, 0.1);
+  color: rgba(21, 128, 61, 0.96);
+  border: 1px solid rgba(36, 154, 90, 0.18);
+}
+
+.detail-modal-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+@media (max-width: 640px) {
+  .campaign-scheduler-form,
+  .campaign-progress-stats,
+  .detail-form-grid,
+  .campaign-scan-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-scan-account-top,
+  .campaign-scan-output-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detail-modal-overlay {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .detail-modal {
+    max-height: none;
+  }
+
+  .detail-form-field {
+    padding: 0.75rem;
+  }
+}
