@@ -54,7 +54,7 @@ export default function BulkPublishSection({
         {error ? <p className="detail-form-message detail-form-message-error">{error}</p> : null}
         {success ? <p className="detail-form-message detail-form-message-success">{success}</p> : null}
 
-        <div className="detail-modal-actions">
+        <div className="campaign-scheduler-actions">
           <PrimaryButton className="dashboard-button-inline detail-action-button" type="submit" disabled={formik.isSubmitting || disabled}>
             {formik.isSubmitting ? "Starting..." : "Start bulk publish"}
           </PrimaryButton>

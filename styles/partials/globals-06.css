@@ -1,61 +1,8 @@
-
-.campaign-scan-account-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid rgba(24, 32, 38, 0.1);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.campaign-scan-account-copy:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.campaign-scan-link-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.campaign-scan-link-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 0.5rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(24, 32, 38, 0.06);
-  color: rgba(24, 32, 38, 0.88);
-  font-size: 0.76rem;
-  font-weight: 600;
-  transition:
-    transform 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.campaign-scan-link-chip:hover {
-  transform: translateY(-1px);
-  background: rgba(234, 124, 77, 0.14);
-  box-shadow: 0 10px 20px rgba(16, 33, 43, 0.07);
-}
-
-.campaign-scan-account-empty {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.82rem;
-}
-
 .campaign-scheduler-form {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
   gap: 0.85rem;
+  align-items: end;
 }
 
 .campaign-scheduler-field {
@@ -65,7 +12,13 @@
 }
 
 .campaign-scheduler-field-wide {
+  grid-column: auto;
+}
+
+.campaign-scheduler-actions {
   grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .campaign-progress-trigger {

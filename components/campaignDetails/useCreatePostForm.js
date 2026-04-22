@@ -1,9 +1,15 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
+import { getEasternDateTimeInputAfterMinutes } from "@/lib/utils/easternTime";
+
 export default function useCreatePostForm({ campaignSlug, router, setFormError, setFormSuccess, setPostRows }) {
   return useFormik({
-    initialValues: { content: "", publish_at: "", video: null },
+    initialValues: {
+      content: "",
+      publish_at: getEasternDateTimeInputAfterMinutes(60),
+      video: null,
+    },
     validationSchema: Yup.object({
       content: Yup.string().trim().required("Content is required"),
       publish_at: Yup.string().required("Publish time is required"),
@@ -23,7 +29,13 @@ export default function useCreatePostForm({ campaignSlug, router, setFormError, 
         if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create post");
         setPostRows((current) => [payload.data, ...current]);
         setFormSuccess(`Post created and targeted ${payload?.meta?.targetCount || 0} account${payload?.meta?.targetCount === 1 ? "" : "s"}.`);
-        helpers.resetForm();
+        helpers.resetForm({
+          values: {
+            content: "",
+            publish_at: getEasternDateTimeInputAfterMinutes(60),
+            video: null,
+          },
+        });
         router.replace(router.asPath, undefined, { scroll: false });
       } catch (error) {
         setFormError(error.message || "Failed to create post");

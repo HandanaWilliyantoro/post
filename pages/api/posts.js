@@ -2,6 +2,10 @@ import formidable from "formidable";
 
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { uploadMediaPipeline } from "@/lib/media/uploadMedia.pipeline";
+import {
+  buildPostDuplicateKey,
+  findDuplicatePost,
+} from "@/lib/post/duplicateGuard";
 import { createPost } from "@/lib/post";
 import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
 
@@ -90,6 +94,21 @@ export default async function handler(req, res) {
       });
     }
 
+    const publishAtIso = easternDateTimeInputToIso(publishAt);
+    const duplicateKey = buildPostDuplicateKey({
+      campaignSlug,
+      content,
+      publish_at: publishAtIso,
+    });
+    const duplicatePost = await findDuplicatePost(duplicateKey);
+
+    if (duplicatePost) {
+      return res.status(409).json({
+        success: false,
+        error: "This post is already scheduled for that campaign and publish time",
+      });
+    }
+
     const uploadedMedia = await uploadMediaPipeline({
       name: uploadedFile.originalFilename,
       path: uploadedFile.filepath,
@@ -98,7 +117,8 @@ export default async function handler(req, res) {
     const post = await createPost({
       campaignSlug,
       content,
-      publish_at: easternDateTimeInputToIso(publishAt),
+      publish_at: publishAtIso,
+      duplicateKey,
       targets: accounts.map((account) => ({
         account_id: account.id,
       })),

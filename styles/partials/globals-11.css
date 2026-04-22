@@ -1,0 +1,36 @@
+.detail-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0.25rem 0;
+}
+
+.detail-pagination-copy,
+.detail-pagination-page {
+  color: rgba(94, 106, 114, 0.95);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.detail-pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.detail-pagination-button {
+  border: 1px solid rgba(24, 32, 38, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(24, 32, 38, 0.9);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.58rem 0.9rem;
+}
+
+.detail-pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}

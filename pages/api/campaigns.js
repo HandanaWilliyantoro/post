@@ -4,6 +4,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const campaigns = await getCampaignRoutes();
+      res.setHeader("Cache-Control", "no-store, max-age=0");
       return res.status(200).json({ success: true, data: campaigns });
     } catch (error) {
       return res.status(500).json({

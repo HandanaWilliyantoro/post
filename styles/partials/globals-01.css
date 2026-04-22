@@ -19,6 +19,8 @@
   --scrollbar-track: rgba(24, 32, 38, 0.06);
   --scrollbar-thumb: rgba(24, 32, 38, 0.28);
   --scrollbar-thumb-hover: rgba(24, 32, 38, 0.42);
+  --font-poppins: "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-ibm-plex-mono: "Consolas", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {

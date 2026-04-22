@@ -2,10 +2,8 @@ export default function DetailControls({
   filteredCount,
   isAccountsView,
   queryText,
-  statusFilter,
   totalCount,
   onQueryChange,
-  onStatusFilterChange,
 }) {
   return (
     <section className="detail-controls">
@@ -17,15 +15,6 @@ export default function DetailControls({
       <p className="detail-showing">
         Showing <span className="detail-showing-strong">{filteredCount}</span> of <span className="detail-showing-strong">{totalCount}</span>
       </p>
-
-      {!isAccountsView ? (
-        <label className="detail-filter">
-          <span className="detail-filter-label">Status</span>
-          <select value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value)} className="detail-filter-select">
-            <option value="all">All</option><option value="queuedLike">Queued + scheduled</option><option value="queued">Queued</option><option value="scheduled">Scheduled</option><option value="processing">Processing</option><option value="partial">Partial</option><option value="published">Published</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option>
-          </select>
-        </label>
-      ) : null}
     </section>
   );
 }

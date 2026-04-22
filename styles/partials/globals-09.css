@@ -55,6 +55,7 @@
   transform: translateY(-1px);
 }
 
+
 .detail-form-textarea {
   min-height: 110px;
   resize: vertical;
@@ -177,17 +178,14 @@
 }
 
 @media (max-width: 640px) {
-  .campaign-scheduler-form,
-  .campaign-progress-stats,
-  .detail-form-grid,
-  .campaign-scan-stats {
-    grid-template-columns: 1fr;
+  .campaign-top-header {
+    flex-direction: column;
   }
 
-  .campaign-scan-account-top,
-  .campaign-scan-output-header {
-    flex-direction: column;
-    align-items: flex-start;
+  .campaign-scheduler-form,
+  .campaign-progress-stats,
+  .detail-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .detail-modal-overlay {

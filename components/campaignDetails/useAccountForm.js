@@ -1,24 +1,25 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-export default function useAccountForm({ campaignSlug, router, setAccountRows, setFormError, setFormSuccess }) {
+export default function useAccountForm({ campaignSlug, idleAccounts = [], router, setAccountRows, setFormError, setFormSuccess }) {
   return useFormik({
-    initialValues: { username: "", platform: "instagram", status: "active", avatar_url: "", id: "" },
+    initialValues: { accountId: "", username: "", platform: "instagram", status: "active" },
     validationSchema: Yup.object({
-      username: Yup.string().trim().required("Username is required"),
+      accountId: Yup.string().trim().required("Account is required"),
       platform: Yup.string().required("Platform is required"),
       status: Yup.string().required("Status is required"),
-      avatar_url: Yup.string().url("Avatar URL must be a valid URL").nullable(),
-      id: Yup.string(),
     }),
     onSubmit: async (values, helpers) => {
       setFormError("");
       setFormSuccess("");
       try {
-        const response = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, campaignSlug }) });
+        const selectedAccount = idleAccounts.find((account) => String(account.id) === values.accountId);
+        const response = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: values.accountId, username: selectedAccount?.username, campaignSlug }) });
         const payload = await response.json();
         if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create account");
-        setAccountRows((current) => [...current, payload.data].sort((left, right) => String(left?.username || "").localeCompare(String(right?.username || ""))));
+        if (payload.data?.campaignSlug === campaignSlug) {
+          setAccountRows((current) => [...current, payload.data].sort((left, right) => String(left?.username || "").localeCompare(String(right?.username || ""))));
+        }
         setFormSuccess("Account created.");
         helpers.resetForm();
         router.replace(router.asPath, undefined, { scroll: false });

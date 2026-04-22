@@ -1,7 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
-import { defaultCampaignRoutes } from "@/lib/campaignDefaults";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 import CampaignSidebar from "@/components/layout/CampaignSidebar";
 import CreateCampaignModal from "@/components/layout/CreateCampaignModal";
@@ -9,7 +8,7 @@ import CreateCampaignModal from "@/components/layout/CreateCampaignModal";
 export default function Layout({ children, title = "Campaign Dashboard" }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [campaigns, setCampaigns] = useState(defaultCampaignRoutes);
+  const [campaigns, setCampaigns] = useState([]);
   const [showCreateCampaignModal, setShowCreateCampaignModal] = useState(false);
   const [campaignError, setCampaignError] = useState("");
   const [campaignSuccess, setCampaignSuccess] = useState("");
@@ -19,7 +18,7 @@ export default function Layout({ children, title = "Campaign Dashboard" }) {
 
     async function loadCampaigns() {
       try {
-        const response = await fetch("/api/campaigns");
+        const response = await fetch("/api/campaigns", { cache: "no-store" });
         const payload = await response.json();
         if (!response.ok || !payload?.success || cancelled) return;
         setCampaigns(payload.data);
@@ -39,6 +38,21 @@ export default function Layout({ children, title = "Campaign Dashboard" }) {
   useEffect(() => {
     if (campaignSuccess) showSuccessSnackbar(campaignSuccess);
   }, [campaignSuccess]);
+
+  useEffect(() => {
+    function handleCampaignDeleted(event) {
+      const deletedSlug = String(event?.detail?.slug || "").trim();
+      if (!deletedSlug) return;
+      setCampaigns((current) =>
+        current.filter((campaign) => campaign.slug !== deletedSlug)
+      );
+    }
+
+    window.addEventListener("campaign-deleted", handleCampaignDeleted);
+    return () => {
+      window.removeEventListener("campaign-deleted", handleCampaignDeleted);
+    };
+  }, []);
 
   async function handleCreateCampaign(values, helpers) {
     setCampaignError("");

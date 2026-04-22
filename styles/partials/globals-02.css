@@ -7,6 +7,10 @@
 
 .campaign-top-header {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
   overflow: hidden;
   padding: 1.5rem 1.5rem 1.35rem;
   border: 1px solid rgba(24, 32, 38, 0.08);
@@ -14,6 +18,10 @@
   background:
     radial-gradient(circle at top right, rgba(234, 124, 77, 0.16), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 249, 241, 0.72));
+}
+
+.campaign-top-actions {
+  flex-shrink: 0;
 }
 
 .campaign-top-title {
@@ -39,8 +47,7 @@
 .campaign-charts-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-height: 0;
   align-items: stretch;
   position: relative;
@@ -53,8 +60,7 @@
   justify-content: flex-start;
   gap: 1rem;
   width: 100%;
-  min-height: 0;
-  height: 100%;
+  min-height: 118px;
   padding: 1.2rem;
   border: 1px solid rgba(24, 32, 38, 0.08);
   border-radius: 24px;

@@ -31,6 +31,11 @@ export default function DeleteCampaignButton({ campaign }) {
       }
 
       showSuccessSnackbar("Campaign deleted.");
+      window.dispatchEvent(
+        new CustomEvent("campaign-deleted", {
+          detail: { slug: campaign.slug },
+        })
+      );
       await router.push("/");
     } catch (error) {
       showErrorSnackbar(error.message || "Failed to delete campaign");

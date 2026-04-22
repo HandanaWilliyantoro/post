@@ -1,11 +1,15 @@
 import { createCampaignAccount } from "@/lib/accounts/campaignAccounts";
+import { syncAccountsFromPostOnce } from "@/lib/accounts/accountSync";
 import { clearAccountsCache, getAccounts } from "@/lib/accounts/getAccounts";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const campaignSlug = String(req.query?.campaignSlug || "").trim() || undefined;
-      const accounts = await getAccounts({ campaignSlug });
+      const accounts = campaignSlug
+        ? await getAccounts({ campaignSlug })
+        : await syncAccountsFromPostOnce();
+      if (!campaignSlug) clearAccountsCache();
 
       return res.status(200).json({ success: true, data: accounts });
     } catch (error) {
@@ -19,13 +23,6 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
       const campaignSlug = String(req.body?.campaignSlug || "").trim();
-
-      if (!campaignSlug) {
-        return res
-          .status(400)
-          .json({ success: false, error: "campaignSlug is required" });
-      }
-
       const account = await createCampaignAccount(campaignSlug, req.body || {});
       clearAccountsCache();
 
@@ -33,7 +30,10 @@ export default async function handler(req, res) {
     } catch (error) {
       const message = error?.message || "Failed to create account";
       const statusCode =
-        message.includes("already exists") || message.includes("required")
+        message.includes("already exists") ||
+        message.includes("required") ||
+        message.includes("not found") ||
+        message.includes("already assigned")
           ? 400
           : 500;
 

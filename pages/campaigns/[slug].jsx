@@ -3,7 +3,7 @@ import DeleteCampaignButton from "@/components/campaign/DeleteCampaignButton";
 import Layout from "@/components/Layout";
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
-import { getPostMetrics } from "@/lib/post";
+import { listAllPosts } from "@/lib/post";
 
 function buildCountTrend(count, points) {
   if (count <= 0) {
@@ -26,7 +26,7 @@ export async function getServerSideProps({ params }) {
 
   const accounts = await getAccounts({ campaignSlug: campaign.slug });
   const totalAccounts = accounts.length;
-  const postMetrics = await getPostMetrics(campaign.slug);
+  const posts = await listAllPosts({ campaignSlug: campaign.slug });
 
   return {
     props: {
@@ -44,18 +44,10 @@ export async function getServerSideProps({ params }) {
           },
           totalPosts: {
             ...campaign.metrics.totalPosts,
-            value: postMetrics.totalPosts,
+            value: posts.length,
             trend: buildCountTrend(
-              postMetrics.totalPosts,
+              posts.length,
               campaign.metrics.totalPosts.trend.length
-            ),
-          },
-          queuedPosts: {
-            ...campaign.metrics.queuedPosts,
-            value: postMetrics.queuedPosts,
-            trend: buildCountTrend(
-              postMetrics.queuedPosts,
-              campaign.metrics.queuedPosts.trend.length
             ),
           },
         },
@@ -67,10 +59,7 @@ export async function getServerSideProps({ params }) {
 export default function CampaignPage({ campaign }) {
   return (
     <Layout title={campaign.label}>
-      <div className="mb-4 flex justify-end">
-        <DeleteCampaignButton campaign={campaign} />
-      </div>
-      <CampaignOverview campaign={campaign} />
+      <CampaignOverview campaign={campaign} actions={<DeleteCampaignButton campaign={campaign} />} />
     </Layout>
   );
 }

@@ -1,79 +1,64 @@
 import { useMemo, useState } from "react";
 
 import Layout from "@/components/Layout";
-import { listManagedAccounts } from "@/lib/accounts/accountInventory";
+import PaginationControls from "@/components/PaginationControls";
+import usePagination from "@/components/usePagination";
 import { getAllCampaignAccountAssignments } from "@/lib/accounts/campaignAccounts";
-import { fetchAllAccounts, serializeAccounts } from "@/lib/accounts/fetchAccounts";
+import { syncAccountsFromPostOnce } from "@/lib/accounts/accountSync";
 import { getCampaignRoutes } from "@/lib/campaigns";
 
 function normalizeUsername(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function buildAccountRows({ accounts, localAccounts, assignments, campaigns }) {
+function buildAccountRows({ localAccounts, assignments, campaigns }) {
   const campaignLabels = new Map(campaigns.map((campaign) => [campaign.slug, campaign.label]));
   const assignmentMap = new Map(
     assignments.map((assignment) => [assignment.username, assignment.campaignSlug])
   );
   const instagramFilter = (account) =>
     String(account?.platform || "").trim().toLowerCase() === "instagram";
-  const remoteByUsername = new Map(
-    serializeAccounts(accounts).filter(instagramFilter).map((account) => [
-      normalizeUsername(account?.username),
-      account,
-    ])
-  );
   const localByUsername = new Map(
-    serializeAccounts(localAccounts).filter(instagramFilter).map((account) => [
+    localAccounts.filter(instagramFilter).map((account) => [
       normalizeUsername(account?.username),
       account,
     ])
   );
-  const usernames = [...new Set([...remoteByUsername.keys(), ...localByUsername.keys()])];
+  const usernames = [...new Set(localByUsername.keys())];
 
   return usernames
     .map((username) => {
-      const remoteAccount = remoteByUsername.get(username);
       const localAccount = localByUsername.get(username);
-      const account = remoteAccount || localAccount || {};
-      const assignedCampaignSlug = assignmentMap.get(username) || "";
-      const baseStatus = String(remoteAccount?.status || localAccount?.status || "active")
-        .trim()
-        .toLowerCase();
+      const account = localAccount || {};
+      const campaignSlug = String(account?.campaignSlug || assignmentMap.get(username) || "").trim();
 
       return {
         ...account,
-        id: remoteAccount?.id || localAccount?.id || username,
+        id: localAccount?.id || username,
         username,
         platform: "instagram",
-        niche: String(localAccount?.niche || remoteAccount?.niche || "streaming")
+        niche: String(localAccount?.niche || "streaming")
           .trim()
           .toLowerCase() || "streaming",
-        accountStatus: assignedCampaignSlug
-          ? "active"
-          : baseStatus === "inactive"
-            ? "inactive"
-            : "idle",
-        assignedCampaignSlug,
-        assignedCampaignLabel: assignedCampaignSlug
-          ? campaignLabels.get(assignedCampaignSlug) || assignedCampaignSlug
+        accountStatus: campaignSlug ? "active" : "idle",
+        campaignSlug,
+        assignedCampaignLabel: campaignSlug
+          ? campaignLabels.get(campaignSlug) || campaignSlug
           : "—",
       };
-    })
-    .filter((account) => account.accountStatus !== "idle");
+    });
 }
 
 export async function getServerSideProps() {
-  const [accounts, assignments, campaigns, localAccounts] = await Promise.all([
-    fetchAllAccounts(),
+  const [assignments, campaigns, localAccounts] = await Promise.all([
     getAllCampaignAccountAssignments(),
     getCampaignRoutes(),
-    listManagedAccounts(),
+    syncAccountsFromPostOnce(),
   ]);
 
   return {
     props: {
-      rows: buildAccountRows({ accounts, localAccounts, assignments, campaigns }),
+      rows: buildAccountRows({ localAccounts, assignments, campaigns }),
     },
   };
 }
@@ -91,6 +76,7 @@ export default function AccountsPage({ rows }) {
       return haystack.toLowerCase().includes(needle);
     });
   }, [queryText, rows]);
+  const pagination = usePagination(filteredRows);
 
   return (
     <Layout title="All Accounts">
@@ -139,7 +125,7 @@ export default function AccountsPage({ rows }) {
                   </td>
                 </tr>
               ) : null}
-              {filteredRows.map((account) => (
+              {pagination.paginatedItems.map((account) => (
                 <tr key={account.id}>
                   <td className="detail-strong">{account.username || "—"}</td>
                   <td>{account.platform || "—"}</td>
@@ -152,6 +138,8 @@ export default function AccountsPage({ rows }) {
             </tbody>
           </table>
         </section>
+
+        <PaginationControls {...pagination} onNext={pagination.setNextPage} onPrevious={pagination.setPreviousPage} />
       </div>
     </Layout>
   );
