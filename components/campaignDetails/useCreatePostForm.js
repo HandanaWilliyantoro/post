@@ -1,18 +1,47 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-import { getEasternDateTimeInputAfterMinutes } from "@/lib/utils/easternTime";
+import {
+  easternDateTimeInputToIso,
+  getCurrentEasternDateTimeInput,
+} from "@/lib/utils/easternTime";
+
+function isFutureEasternDateTime(value) {
+  if (!String(value || "").trim()) {
+    return false;
+  }
+
+  try {
+    const isoValue = easternDateTimeInputToIso(value);
+    const currentEasternMinuteIso = easternDateTimeInputToIso(
+      getCurrentEasternDateTimeInput()
+    );
+
+    return (
+      new Date(isoValue).getTime() >=
+      new Date(currentEasternMinuteIso).getTime()
+    );
+  } catch {
+    return false;
+  }
+}
 
 export default function useCreatePostForm({ campaignSlug, router, setFormError, setFormSuccess, setPostRows }) {
   return useFormik({
     initialValues: {
       content: "",
-      publish_at: getEasternDateTimeInputAfterMinutes(60),
+      publish_at: getCurrentEasternDateTimeInput(),
       video: null,
     },
     validationSchema: Yup.object({
       content: Yup.string().trim().required("Content is required"),
-      publish_at: Yup.string().required("Publish time is required"),
+      publish_at: Yup.string()
+        .required("Publish time is required")
+        .test(
+          "is-future-publish-time",
+          "Publish time must be current or future Eastern time",
+          isFutureEasternDateTime
+        ),
       video: Yup.mixed().required("Video is required"),
     }),
     onSubmit: async (values, helpers) => {
@@ -32,7 +61,7 @@ export default function useCreatePostForm({ campaignSlug, router, setFormError, 
         helpers.resetForm({
           values: {
             content: "",
-            publish_at: getEasternDateTimeInputAfterMinutes(60),
+            publish_at: getCurrentEasternDateTimeInput(),
             video: null,
           },
         });

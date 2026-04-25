@@ -1,12 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ModalShell from "@/components/campaignDetails/ModalShell";
 import PrimaryButton from "@/components/PrimaryButton";
+import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
+import { showErrorSnackbar } from "@/lib/ui/snackbar";
 
 export default function AddAccountModal({ formError, formSuccess, formik, idleAccounts = [], onClose }) {
   const selectedAccount = idleAccounts.find((account) => account.id === formik.values.accountId);
   const [searchText, setSearchText] = useState(selectedAccount?.username || "");
   const [isOpen, setIsOpen] = useState(false);
+  useFormErrorSnackbar(formik);
+
+  useEffect(() => {
+    if (!idleAccounts.length) {
+      showErrorSnackbar("No idle accounts available. Open All Accounts to sync from PostOnce.", {
+        autoHideDuration: 6000,
+      });
+    }
+  }, [idleAccounts.length]);
+
   const filteredAccounts = useMemo(() => {
     const needle = searchText.trim().toLowerCase();
     return idleAccounts

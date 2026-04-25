@@ -58,6 +58,10 @@
   color: rgba(24, 32, 38, 0.96);
 }
 
+.detail-break-all {
+  word-break: break-all;
+}
+
 .detail-mono {
   font-family: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.84rem;
@@ -102,6 +106,19 @@
 }
 
 .detail-pill-published {
+  background: rgba(90, 176, 126, 0.14);
+  border-color: rgba(90, 176, 126, 0.22);
+  color: rgba(45, 120, 74, 0.95);
+}
+
+.detail-pill-pending,
+.detail-pill-ready {
+  background: rgba(234, 124, 77, 0.12);
+  border-color: rgba(234, 124, 77, 0.22);
+  color: rgba(196, 93, 52, 0.96);
+}
+
+.detail-pill-sent {
   background: rgba(90, 176, 126, 0.14);
   border-color: rgba(90, 176, 126, 0.22);
   color: rgba(45, 120, 74, 0.95);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 import AddAccountModal from "@/components/campaignDetails/AddAccountModal";
@@ -7,63 +7,173 @@ import DeleteCampaignButton from "@/components/campaign/DeleteCampaignButton";
 import DetailControls from "@/components/campaignDetails/DetailControls";
 import DetailHeader from "@/components/campaignDetails/DetailHeader";
 import DetailTable from "@/components/campaignDetails/DetailTable";
-import PaginationControls from "@/components/PaginationControls";
+import PaginationControls, {
+  DEFAULT_PAGE_SIZE,
+} from "@/components/PaginationControls";
 import useAccountForm from "@/components/campaignDetails/useAccountForm";
 import useCreatePostForm from "@/components/campaignDetails/useCreatePostForm";
 import useFeedbackEffects from "@/components/campaignDetails/useFeedbackEffects";
-import usePagination from "@/components/usePagination";
 import { normalizeMetric } from "@/components/campaignDetails/utils";
 import Layout from "@/components/Layout";
-import { clearAccountsCache, getAccounts } from "@/lib/accounts/getAccounts";
-import { listIdleAccounts } from "@/lib/accounts/campaignAccounts";
-import { syncAccountsFromPostOnce } from "@/lib/accounts/accountSync";
+import { getCampaignAccountsPage, listIdleAccounts } from "@/lib/accounts/campaignAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
-import { listAllPosts } from "@/lib/post";
+import { listPostsPage } from "@/lib/post/queries/listPosts";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
+import { getCurrentEasternDateTimeInput } from "@/lib/utils/easternTime";
+
+function sanitizePage(value) {
+  const parsed = Number(value || 1);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
 
 export async function getServerSideProps({ params, query }) {
   const campaign = await findCampaignBySlug(params?.slug);
   if (!campaign) return { notFound: true };
 
   const metric = normalizeMetric(query?.metric);
-  if (metric === "totalAccounts") {
-    await syncAccountsFromPostOnce();
-    clearAccountsCache();
-  }
-  const accounts = await getAccounts({ campaignSlug: campaign.slug });
+  const page = sanitizePage(query?.page);
+  const queryText = String(query?.q || "").trim();
   const idleAccounts = metric === "totalAccounts" ? await listIdleAccounts() : [];
+
   if (metric === "totalAccounts") {
-    return { props: { campaign, metric, rows: accounts, assignedAccountsCount: accounts.length, idleAccounts } };
+    const accountsPage = await getCampaignAccountsPage(campaign.slug, {
+      page,
+      pageSize: DEFAULT_PAGE_SIZE,
+      queryText,
+    });
+
+    return {
+      props: {
+        campaign,
+        idleAccounts,
+        metric,
+        page: accountsPage.page,
+        pageSize: accountsPage.pageSize,
+        queryText,
+        rows: accountsPage.items,
+        totalItems: accountsPage.totalItems,
+      },
+    };
   }
 
-  const posts = await listAllPosts({ campaignSlug: campaign.slug });
-  return { props: { campaign, metric, rows: posts, assignedAccountsCount: accounts.length, idleAccounts } };
+  const postsPage = await listPostsPage({
+    campaignSlug: campaign.slug,
+    page,
+    pageSize: DEFAULT_PAGE_SIZE,
+    queryText,
+  });
+
+  const accountsCountPage = await getCampaignAccountsPage(campaign.slug, {
+    page: 1,
+    pageSize: 1,
+  });
+
+  return {
+    props: {
+      campaign,
+      idleAccounts,
+      metric,
+      page: postsPage.page,
+      pageSize: postsPage.pageSize,
+      queryText,
+      rows: postsPage.items,
+      totalItems: postsPage.totalItems,
+      assignedAccountsCount: accountsCountPage.totalItems,
+    },
+  };
 }
 
-export default function CampaignDetailsPage({ campaign, metric, rows, assignedAccountsCount, idleAccounts }) {
+export default function CampaignDetailsPage({
+  assignedAccountsCount = 0,
+  campaign,
+  idleAccounts,
+  metric,
+  page,
+  pageSize,
+  queryText,
+  rows,
+  totalItems,
+}) {
   const router = useRouter();
-  const [accountRows, setAccountRows] = useState(metric === "totalAccounts" ? rows : []);
-  const [postRows, setPostRows] = useState(metric === "totalAccounts" ? [] : rows);
-  const [queryText, setQueryText] = useState("");
+  const [searchText, setSearchText] = useState(queryText);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+  const [removingAccountId, setRemovingAccountId] = useState("");
   const isAccountsView = metric === "totalAccounts";
-  const tableRows = isAccountsView ? accountRows : postRows;
   const disableAddPost = !isAccountsView && assignedAccountsCount === 0;
+  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startItem = totalItems ? (page - 1) * pageSize + 1 : 0;
+  const endItem = totalItems ? Math.min(page * pageSize, totalItems) : 0;
 
   useFeedbackEffects(formError, formSuccess);
-  const filteredRows = useMemo(() => {
-    const needle = queryText.trim().toLowerCase();
-    return tableRows.filter((entry) => {
-      if (!needle) return true;
-      const haystack = isAccountsView ? `${entry?.username || ""} ${entry?.platform || ""} ${entry?.status || ""} ${entry?.id || ""}` : `${entry?.content || ""} ${entry?.status || ""} ${entry?.id || ""} ${entry?.origin || ""}`;
-      return haystack.toLowerCase().includes(needle);
-    });
-  }, [isAccountsView, queryText, tableRows]);
-  const pagination = usePagination(filteredRows);
 
-  const accountFormik = useAccountForm({ campaignSlug: campaign.slug, idleAccounts, router, setAccountRows, setFormError, setFormSuccess });
-  const postFormik = useCreatePostForm({ campaignSlug: campaign.slug, router, setFormError, setFormSuccess, setPostRows });
+  useEffect(() => {
+    setSearchText(queryText);
+  }, [queryText]);
+
+  function buildQuery(overrides = {}) {
+    const nextQuery = {
+      slug: campaign.slug,
+      metric,
+      ...(searchText.trim() ? { q: searchText.trim() } : {}),
+      ...overrides,
+    };
+
+    if (nextQuery.page <= 1) {
+      delete nextQuery.page;
+    }
+
+    if (!nextQuery.q) {
+      delete nextQuery.q;
+    }
+
+    return nextQuery;
+  }
+
+  function navigate(nextQuery = {}) {
+    return router.replace(
+      {
+        pathname: router.pathname,
+        query: buildQuery(nextQuery),
+      },
+      undefined,
+      { scroll: false }
+    );
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const normalized = searchText.trim();
+      const current = String(router.query?.q || "").trim();
+
+      if (normalized === current) {
+        return;
+      }
+
+      void navigate({ q: normalized, page: 1 });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchText]);
+
+  const accountFormik = useAccountForm({
+    campaignSlug: campaign.slug,
+    idleAccounts,
+    router,
+    setAccountRows: () => {},
+    setFormError,
+    setFormSuccess,
+  });
+  const postFormik = useCreatePostForm({
+    campaignSlug: campaign.slug,
+    router,
+    setFormError,
+    setFormSuccess,
+    setPostRows: () => {},
+  });
 
   function closeAddModal() {
     setShowAddModal(false);
@@ -73,17 +183,124 @@ export default function CampaignDetailsPage({ campaign, metric, rows, assignedAc
     postFormik.resetForm();
   }
 
+  async function handleRemoveAccount(account) {
+    const accountId = String(account?.id || "").trim();
+    const username = String(account?.username || "").trim();
+
+    if (!accountId) {
+      showErrorSnackbar("Account id is required");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove "${username || accountId}" from ${campaign.label}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRemovingAccountId(accountId);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const response = await fetch("/api/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to remove account");
+      }
+
+      showSuccessSnackbar("Account moved back to idle.");
+      await router.replace(router.asPath, undefined, { scroll: false });
+    } catch (error) {
+      showErrorSnackbar(error?.message || "Failed to remove account");
+    } finally {
+      setRemovingAccountId("");
+    }
+  }
+
+  function openAddModal() {
+    setFormError("");
+    setFormSuccess("");
+
+    if (isAccountsView) {
+      accountFormik.resetForm();
+    } else {
+      postFormik.resetForm({
+        values: {
+          content: "",
+          publish_at: getCurrentEasternDateTimeInput(),
+          video: null,
+        },
+      });
+    }
+
+    setShowAddModal(true);
+  }
+
   return (
     <Layout title={campaign.label}>
       <div className="detail-shell">
-        <DetailHeader addButtonLabel={isAccountsView ? "Add account" : "Add post"} campaign={campaign} disableAddPost={disableAddPost} extraActions={<DeleteCampaignButton campaign={campaign} />} isAccountsView={isAccountsView} title={isAccountsView ? `${campaign.label} accounts` : `${campaign.label} posts`} onOpenAddModal={() => setShowAddModal(true)} />
-        <DetailControls filteredCount={filteredRows.length} isAccountsView={isAccountsView} queryText={queryText} totalCount={tableRows.length} onQueryChange={setQueryText} />
-        <DetailTable filteredRows={pagination.paginatedItems} isAccountsView={isAccountsView} metric={metric} />
-        <PaginationControls {...pagination} onNext={pagination.setNextPage} onPrevious={pagination.setPreviousPage} />
+        <DetailHeader
+          addButtonLabel={isAccountsView ? "Add account" : "Add post"}
+          campaign={campaign}
+          disableAddPost={disableAddPost}
+          extraActions={<DeleteCampaignButton campaign={campaign} />}
+          isAccountsView={isAccountsView}
+          title={isAccountsView ? `${campaign.label} accounts` : `${campaign.label} posts`}
+          onOpenAddModal={openAddModal}
+        />
+        <DetailControls
+          filteredCount={totalItems}
+          isAccountsView={isAccountsView}
+          queryText={searchText}
+          totalCount={totalItems}
+          onQueryChange={setSearchText}
+        />
+        <DetailTable
+          filteredRows={rows}
+          isAccountsView={isAccountsView}
+          metric={metric}
+          onRemoveAccount={handleRemoveAccount}
+          removingAccountId={removingAccountId}
+        />
+        <PaginationControls
+          endItem={endItem}
+          onNext={() => void navigate({ page: Math.min(page + 1, pageCount) })}
+          onPrevious={() => void navigate({ page: Math.max(page - 1, 1) })}
+          page={page}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          startItem={startItem}
+          totalItems={totalItems}
+        />
       </div>
 
-      {showAddModal && isAccountsView ? <AddAccountModal idleAccounts={idleAccounts} formError={formError} formSuccess={formSuccess} formik={accountFormik} onClose={closeAddModal} /> : null}
-      {showAddModal && !isAccountsView ? <AddPostModal assignedAccountsCount={assignedAccountsCount} disableAddPost={disableAddPost} formError={formError} formSuccess={formSuccess} formik={postFormik} onClose={closeAddModal} /> : null}
+      {showAddModal && isAccountsView ? (
+        <AddAccountModal
+          idleAccounts={idleAccounts}
+          formError={formError}
+          formSuccess={formSuccess}
+          formik={accountFormik}
+          onClose={closeAddModal}
+        />
+      ) : null}
+      {showAddModal && !isAccountsView ? (
+        <AddPostModal
+          assignedAccountsCount={assignedAccountsCount}
+          disableAddPost={disableAddPost}
+          formError={formError}
+          formSuccess={formSuccess}
+          formik={postFormik}
+          onClose={closeAddModal}
+        />
+      ) : null}
     </Layout>
   );
 }

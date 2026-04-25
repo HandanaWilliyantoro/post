@@ -1,5 +1,7 @@
 import formidable from "formidable";
 
+import { findCampaignBySlug } from "@/lib/campaigns";
+import { buildCampaignFields } from "@/lib/campaignMetadata";
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { uploadMediaPipeline } from "@/lib/media/uploadMedia.pipeline";
 import {
@@ -7,6 +9,7 @@ import {
   findDuplicatePost,
 } from "@/lib/post/duplicateGuard";
 import { createPost } from "@/lib/post";
+import { formatErrorForLog } from "@/lib/utils/formatErrorForLog";
 import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
 
 export const config = {
@@ -85,6 +88,16 @@ export default async function handler(req, res) {
         .json({ success: false, error: "A video file is required" });
     }
 
+    const campaign = await findCampaignBySlug(campaignSlug);
+
+    if (!campaign) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Campaign not found" });
+    }
+
+    buildCampaignFields(campaign);
+
     const accounts = await getAccounts({ campaignSlug });
 
     if (!accounts.length) {
@@ -116,6 +129,7 @@ export default async function handler(req, res) {
 
     const post = await createPost({
       campaignSlug,
+      campaignType: campaign.campaignType,
       content,
       publish_at: publishAtIso,
       duplicateKey,
@@ -138,10 +152,18 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    console.error("Failed to create post:", error);
-    return res.status(500).json({
+    console.error(formatErrorForLog(error, "[api/posts] Failed to create post"));
+    const message = error?.message || "Failed to create post";
+    const statusCode =
+      message.includes("required") ||
+      message.includes("not found") ||
+      message.includes("invalid")
+        ? 400
+        : 500;
+
+    return res.status(statusCode).json({
       success: false,
-      error: error?.message || "Failed to create post",
+      error: message,
     });
   }
 }

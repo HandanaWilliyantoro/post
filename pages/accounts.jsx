@@ -1,82 +1,142 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 
 import Layout from "@/components/Layout";
-import PaginationControls from "@/components/PaginationControls";
-import usePagination from "@/components/usePagination";
-import { getAllCampaignAccountAssignments } from "@/lib/accounts/campaignAccounts";
-import { syncAccountsFromPostOnce } from "@/lib/accounts/accountSync";
+import PaginationControls, {
+  DEFAULT_PAGE_SIZE,
+} from "@/components/PaginationControls";
+import PrimaryButton from "@/components/PrimaryButton";
+import { listLocalAccountsPage } from "@/lib/accounts/campaignAccounts";
 import { getCampaignRoutes } from "@/lib/campaigns";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 
-function normalizeUsername(value) {
-  return String(value || "").trim().toLowerCase();
+function buildAccountRows({ localAccounts, campaigns }) {
+  const campaignLabels = new Map(
+    campaigns.map((campaign) => [campaign.slug, campaign.label])
+  );
+
+  return localAccounts.map((account) => {
+    const campaignSlug = String(account?.campaignSlug || "").trim();
+
+    return {
+      ...account,
+      id: account?.id || account?.username || "-",
+      username: account?.username || "-",
+      platform: account?.platform || "instagram",
+      niche:
+        String(account?.niche || "streaming").trim().toLowerCase() ||
+        "streaming",
+      accountStatus: account?.status || (campaignSlug ? "active" : "idle"),
+      campaignSlug,
+      assignedCampaignLabel: campaignSlug
+        ? campaignLabels.get(campaignSlug) || campaignSlug
+        : "-",
+    };
+  });
 }
 
-function buildAccountRows({ localAccounts, assignments, campaigns }) {
-  const campaignLabels = new Map(campaigns.map((campaign) => [campaign.slug, campaign.label]));
-  const assignmentMap = new Map(
-    assignments.map((assignment) => [assignment.username, assignment.campaignSlug])
-  );
-  const instagramFilter = (account) =>
-    String(account?.platform || "").trim().toLowerCase() === "instagram";
-  const localByUsername = new Map(
-    localAccounts.filter(instagramFilter).map((account) => [
-      normalizeUsername(account?.username),
-      account,
-    ])
-  );
-  const usernames = [...new Set(localByUsername.keys())];
-
-  return usernames
-    .map((username) => {
-      const localAccount = localByUsername.get(username);
-      const account = localAccount || {};
-      const campaignSlug = String(account?.campaignSlug || assignmentMap.get(username) || "").trim();
-
-      return {
-        ...account,
-        id: localAccount?.id || username,
-        username,
-        platform: "instagram",
-        niche: String(localAccount?.niche || "streaming")
-          .trim()
-          .toLowerCase() || "streaming",
-        accountStatus: campaignSlug ? "active" : "idle",
-        campaignSlug,
-        assignedCampaignLabel: campaignSlug
-          ? campaignLabels.get(campaignSlug) || campaignSlug
-          : "—",
-      };
-    });
+function sanitizePage(value) {
+  const parsed = Number(value || 1);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
 }
 
-export async function getServerSideProps() {
-  const [assignments, campaigns, localAccounts] = await Promise.all([
-    getAllCampaignAccountAssignments(),
+export async function getServerSideProps({ query }) {
+  const page = sanitizePage(query?.page);
+  const queryText = String(query?.q || "").trim();
+  const [campaigns, accountsPage] = await Promise.all([
     getCampaignRoutes(),
-    syncAccountsFromPostOnce(),
+    listLocalAccountsPage({
+      page,
+      pageSize: DEFAULT_PAGE_SIZE,
+      queryText,
+    }),
   ]);
 
   return {
     props: {
-      rows: buildAccountRows({ localAccounts, assignments, campaigns }),
+      page: accountsPage.page,
+      pageSize: accountsPage.pageSize,
+      queryText,
+      rows: buildAccountRows({
+        localAccounts: accountsPage.items,
+        campaigns,
+      }),
+      totalItems: accountsPage.totalItems,
     },
   };
 }
 
-export default function AccountsPage({ rows }) {
-  const [queryText, setQueryText] = useState("");
-  const filteredRows = useMemo(() => {
-    const needle = queryText.trim().toLowerCase();
-    if (!needle) return rows;
+export default function AccountsPage({
+  page,
+  pageSize,
+  queryText,
+  rows,
+  totalItems,
+}) {
+  const router = useRouter();
+  const [searchText, setSearchText] = useState(queryText);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startItem = totalItems ? (page - 1) * pageSize + 1 : 0;
+  const endItem = totalItems ? Math.min(page * pageSize, totalItems) : 0;
 
-    return rows.filter((account) => {
-      const haystack =
-        `${account?.username || ""} ${account?.platform || ""} ${account?.niche || ""} ` +
-        `${account?.accountStatus || ""} ${account?.assignedCampaignLabel || ""} ${account?.id || ""}`;
-      return haystack.toLowerCase().includes(needle);
-    });
-  }, [queryText, rows]);
-  const pagination = usePagination(filteredRows);
+  useEffect(() => {
+    setSearchText(queryText);
+  }, [queryText]);
+
+  function navigate(nextQuery = {}) {
+    return router.replace(
+      {
+        pathname: router.pathname,
+        query: nextQuery,
+      },
+      undefined,
+      { scroll: false }
+    );
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const normalized = searchText.trim();
+      const current = String(router.query?.q || "").trim();
+
+      if (normalized === current) {
+        return;
+      }
+
+      const nextQuery = {};
+
+      if (normalized) {
+        nextQuery.q = normalized;
+      }
+
+      void navigate(nextQuery);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchText]);
+
+  async function handleSeedAccounts() {
+    setIsSeeding(true);
+
+    try {
+      const response = await fetch("/api/accounts", { cache: "no-store" });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to seed accounts");
+      }
+
+      showSuccessSnackbar("Accounts synced from PostOnce.");
+      await navigate(searchText.trim() ? { q: searchText.trim() } : {});
+    } catch (error) {
+      showErrorSnackbar(error?.message || "Failed to seed accounts");
+    } finally {
+      setIsSeeding(false);
+    }
+  }
 
   return (
     <Layout title="All Accounts">
@@ -87,21 +147,33 @@ export default function AccountsPage({ rows }) {
               <h1 className="detail-title">All available accounts</h1>
             </div>
           </div>
+          <div className="detail-header-right">
+            <PrimaryButton
+              className="dashboard-button-inline detail-action-button"
+              disabled={isSeeding}
+              onClick={handleSeedAccounts}
+            >
+              {isSeeding ? "Seeding..." : "Seed accounts"}
+            </PrimaryButton>
+          </div>
         </header>
 
         <section className="detail-controls">
           <label className="detail-search">
             <span className="sr-only">Search accounts</span>
             <input
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
               className="detail-search-input"
               placeholder="Search accounts..."
             />
           </label>
           <p className="detail-showing">
-            Showing <span className="detail-showing-strong">{filteredRows.length}</span> of{" "}
-            <span className="detail-showing-strong">{rows.length}</span>
+            Showing{" "}
+            <span className="detail-showing-strong">
+              {endItem ? `${startItem}-${endItem}` : 0}
+            </span>{" "}
+            of <span className="detail-showing-strong">{totalItems}</span>
           </p>
         </section>
 
@@ -118,28 +190,47 @@ export default function AccountsPage({ rows }) {
               </tr>
             </thead>
             <tbody>
-              {!filteredRows.length ? (
+              {!rows.length ? (
                 <tr>
                   <td colSpan={6} className="detail-empty">
                     Nothing matches your filters yet.
                   </td>
                 </tr>
               ) : null}
-              {pagination.paginatedItems.map((account) => (
+              {rows.map((account) => (
                 <tr key={account.id}>
-                  <td className="detail-strong">{account.username || "—"}</td>
-                  <td>{account.platform || "—"}</td>
-                  <td>{account.niche || "—"}</td>
-                  <td>{account.accountStatus || "—"}</td>
-                  <td>{account.assignedCampaignLabel || "—"}</td>
-                  <td className="detail-mono">{account.id || "—"}</td>
+                  <td className="detail-strong">{account.username || "-"}</td>
+                  <td>{account.platform || "-"}</td>
+                  <td>{account.niche || "-"}</td>
+                  <td>{account.accountStatus || "-"}</td>
+                  <td>{account.assignedCampaignLabel || "-"}</td>
+                  <td className="detail-mono">{account.id || "-"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
 
-        <PaginationControls {...pagination} onNext={pagination.setNextPage} onPrevious={pagination.setPreviousPage} />
+        <PaginationControls
+          endItem={endItem}
+          onNext={() =>
+            void navigate({
+              ...(searchText.trim() ? { q: searchText.trim() } : {}),
+              page: Math.min(page + 1, pageCount),
+            })
+          }
+          onPrevious={() =>
+            void navigate({
+              ...(searchText.trim() ? { q: searchText.trim() } : {}),
+              ...(page > 2 ? { page: page - 1 } : {}),
+            })
+          }
+          page={page}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          startItem={startItem}
+          totalItems={totalItems}
+        />
       </div>
     </Layout>
   );

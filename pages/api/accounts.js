@@ -1,4 +1,7 @@
-import { createCampaignAccount } from "@/lib/accounts/campaignAccounts";
+import {
+  createCampaignAccount,
+  releaseCampaignAccount,
+} from "@/lib/accounts/campaignAccounts";
 import { syncAccountsFromPostOnce } from "@/lib/accounts/accountSync";
 import { clearAccountsCache, getAccounts } from "@/lib/accounts/getAccounts";
 
@@ -38,6 +41,24 @@ export default async function handler(req, res) {
           : 500;
 
       console.error("Failed to create account:", error);
+      return res.status(statusCode).json({ success: false, error: message });
+    }
+  }
+
+  if (req.method === "DELETE") {
+    try {
+      const account = await releaseCampaignAccount(req.body || req.query || {});
+      clearAccountsCache();
+
+      return res.status(200).json({ success: true, data: account });
+    } catch (error) {
+      const message = error?.message || "Failed to remove account";
+      const statusCode =
+        message.includes("required") || message.includes("not found")
+          ? 400
+          : 500;
+
+      console.error("Failed to remove account:", error);
       return res.status(statusCode).json({ success: false, error: message });
     }
   }

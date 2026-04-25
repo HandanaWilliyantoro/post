@@ -52,7 +52,7 @@ export default function CampaignOverview({ actions, campaign }) {
 
   return (
     <section className="campaign-overview">
-      <header className="campaign-top-header"><div><h1 className="campaign-top-title">{campaign.label}</h1><p className="campaign-top-description">{campaign.description}</p></div>{actions ? <div className="campaign-top-actions">{actions}</div> : null}</header>
+      <header className="campaign-top-header"><div><h1 className="campaign-top-title">{campaign.label}</h1><p className="campaign-top-description">{campaign.description}</p><p className="campaign-detail-hint">Type: {campaign.campaignType || "manual"}{campaign.campaignType === "auto-scan" && campaign.campaignId ? ` | Campaign ID: ${campaign.campaignId}` : ""}</p></div>{actions ? <div className="campaign-top-actions">{actions}</div> : null}</header>
       <div className="campaign-charts-grid">
         {metricDefinitions.map((metric) => <MetricChartCard key={metric.key} label={metric.label} value={campaign.metrics[metric.key].value} active={activeMetricKey === metric.key} loading={pendingMetricKey === metric.key && isPending} disabled={isPending} onClick={() => openDetails(metric.key)} />)}
         {isPending ? <div className="campaign-grid-loading"><span className="campaign-grid-loading-spinner" /><p className="campaign-grid-loading-title">Loading detail view</p><p className="campaign-grid-loading-copy">Pulling the selected campaign data into the table.</p></div> : null}

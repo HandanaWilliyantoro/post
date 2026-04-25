@@ -2,6 +2,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 
 import PrimaryButton from "@/components/PrimaryButton";
+import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
 
 const validationSchema = Yup.object({
   startDate: Yup.string().required("Start date is required"),
@@ -23,6 +24,7 @@ export default function BulkPublishSection({
     validationSchema,
     onSubmit,
   });
+  useFormErrorSnackbar(formik);
 
   return (
     <section className="dashboard-card campaign-scheduler-card">
