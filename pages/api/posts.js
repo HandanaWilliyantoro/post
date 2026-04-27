@@ -3,12 +3,11 @@ import formidable from "formidable";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { buildCampaignFields } from "@/lib/campaignMetadata";
 import { getAccounts } from "@/lib/accounts/getAccounts";
-import { uploadMediaPipeline } from "@/lib/media/uploadMedia.pipeline";
 import {
   buildPostDuplicateKey,
   findDuplicatePost,
 } from "@/lib/post/duplicateGuard";
-import { createPost } from "@/lib/post";
+import { scheduleVideoPosts } from "@/lib/pipeline/scheduleVideoPosts";
 import { formatErrorForLog } from "@/lib/utils/formatErrorForLog";
 import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
 
@@ -52,6 +51,13 @@ function getSingleFile(value) {
   return value;
 }
 
+function parseTitleVariants(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -61,6 +67,7 @@ export default async function handler(req, res) {
     const { fields, files } = await parseForm(req);
     const campaignSlug = String(getSingleValue(fields.campaignSlug) || "").trim();
     const content = String(getSingleValue(fields.content) || "").trim();
+    const titleVariants = parseTitleVariants(getSingleValue(fields.titleVariants));
     const publishAt = String(getSingleValue(fields.publish_at) || "").trim();
     const uploadedFile = getSingleFile(files.video);
 
@@ -74,6 +81,12 @@ export default async function handler(req, res) {
       return res
         .status(400)
         .json({ success: false, error: "content is required" });
+    }
+
+    if (!titleVariants.length) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Comma-separated titles are required" });
     }
 
     if (!publishAt || Number.isNaN(new Date(publishAt).getTime())) {
@@ -107,48 +120,60 @@ export default async function handler(req, res) {
       });
     }
 
+    if (titleVariants.length < accounts.length) {
+      return res.status(400).json({
+        success: false,
+        error: `Provide at least ${accounts.length} comma-separated titles for ${accounts.length} assigned account${accounts.length === 1 ? "" : "s"}`,
+      });
+    }
+
     const publishAtIso = easternDateTimeInputToIso(publishAt);
+    const sourceFile = {
+      name: uploadedFile.originalFilename,
+      path: uploadedFile.filepath,
+    };
     const duplicateKey = buildPostDuplicateKey({
       campaignSlug,
       content,
       publish_at: publishAtIso,
+      targets:
+        campaign.campaignType === "auto-scan"
+          ? []
+          : accounts.map((account) => ({ account_id: account.id })),
     });
-    const duplicatePost = await findDuplicatePost(duplicateKey);
+    const duplicatePost =
+      campaign.campaignType === "auto-scan"
+        ? null
+        : await findDuplicatePost(duplicateKey);
 
     if (duplicatePost) {
       return res.status(409).json({
         success: false,
-        error: "This post is already scheduled for that campaign and publish time",
+        error:
+          "This post is already scheduled for that campaign, target set, and publish time",
       });
     }
 
-    const uploadedMedia = await uploadMediaPipeline({
-      name: uploadedFile.originalFilename,
-      path: uploadedFile.filepath,
-    });
-
-    const post = await createPost({
-      campaignSlug,
-      campaignType: campaign.campaignType,
+    const result = await scheduleVideoPosts({
+      campaign,
+      accounts,
       content,
-      publish_at: publishAtIso,
-      duplicateKey,
-      targets: accounts.map((account) => ({
-        account_id: account.id,
-      })),
-      media: [
-        {
-          url: uploadedMedia.url,
-          type: "video",
-        },
-      ],
+      titleVariants,
+      publishAt: publishAtIso,
+      sourceFile,
+      sourceFilePath: uploadedFile.filepath,
+      origin: "manual",
     });
+    const createdPosts = Array.isArray(result?.posts) ? result.posts : [];
+    const primaryPost = createdPosts[0] || null;
 
     return res.status(201).json({
       success: true,
-      data: post,
+      data: primaryPost,
       meta: {
         targetCount: accounts.length,
+        createdCount: createdPosts.length,
+        titleProvider: result?.variantMetadata?.titleProvider || null,
       },
     });
   } catch (error) {

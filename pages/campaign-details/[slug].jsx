@@ -100,6 +100,7 @@ export default function CampaignDetailsPage({
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [removingAccountId, setRemovingAccountId] = useState("");
+  const [removingPostId, setRemovingPostId] = useState("");
   const isAccountsView = metric === "totalAccounts";
   const disableAddPost = !isAccountsView && assignedAccountsCount === 0;
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -168,6 +169,7 @@ export default function CampaignDetailsPage({
     setFormSuccess,
   });
   const postFormik = useCreatePostForm({
+    assignedAccountsCount,
     campaignSlug: campaign.slug,
     router,
     setFormError,
@@ -225,6 +227,45 @@ export default function CampaignDetailsPage({
     }
   }
 
+  async function handleDeletePost(post) {
+    const postId = String(post?.id || "").trim();
+
+    if (!postId) {
+      showErrorSnackbar("Post id is required");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete post "${postId}" from PostOnce and local posts?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRemovingPostId(postId);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to delete post");
+      }
+
+      showSuccessSnackbar("Post deleted.");
+      await router.replace(router.asPath, undefined, { scroll: false });
+    } catch (error) {
+      showErrorSnackbar(error?.message || "Failed to delete post");
+    } finally {
+      setRemovingPostId("");
+    }
+  }
+
   function openAddModal() {
     setFormError("");
     setFormSuccess("");
@@ -235,6 +276,7 @@ export default function CampaignDetailsPage({
       postFormik.resetForm({
         values: {
           content: "",
+          titleVariants: "",
           publish_at: getCurrentEasternDateTimeInput(),
           video: null,
         },
@@ -267,8 +309,10 @@ export default function CampaignDetailsPage({
           filteredRows={rows}
           isAccountsView={isAccountsView}
           metric={metric}
+          onDeletePost={handleDeletePost}
           onRemoveAccount={handleRemoveAccount}
           removingAccountId={removingAccountId}
+          removingPostId={removingPostId}
         />
         <PaginationControls
           endItem={endItem}

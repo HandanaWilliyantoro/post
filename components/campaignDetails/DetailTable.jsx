@@ -2,10 +2,11 @@ import StatusPill from "@/components/campaignDetails/StatusPill";
 import {
   formatDate,
   shorten,
+  summarizeTargets,
 } from "@/components/campaignDetails/utils";
 
 function EmptyRow({ isAccountsView }) {
-  const colSpan = isAccountsView ? 5 : 4;
+  const colSpan = isAccountsView ? 5 : 6;
   return (
     <tr>
       <td colSpan={colSpan} className="detail-empty">
@@ -46,15 +47,35 @@ function AccountRow({ account, onRemoveAccount, removingAccountId }) {
   );
 }
 
-function PostRow({ post }) {
+function PostRow({ onDeletePost, post, removingPostId }) {
   const status = String(post?.status || "scheduled").trim() || "scheduled";
+  const isRemoving = removingPostId === post.id;
 
   return (
     <tr key={post.id}>
       <td><div className="detail-post-main"><span className="detail-strong">{shorten(post.content)}</span><span className="detail-post-subtle">Media: {post?.media?.[0]?.type || "video"}</span><span className="detail-post-subtle">Origin: {post?.origin || "-"}</span><span className="detail-post-subtle">Campaign type: {post?.campaignType || "manual"}</span>{post?.campaignId ? <span className="detail-post-subtle">Campaign ID: {post.campaignId}</span> : null}</div></td>
       <td>{formatDate(post.publish_at)}</td>
       <td><StatusPill value={status} /></td>
+      <td>{summarizeTargets(post?.targets)}</td>
       <td className="detail-mono">{post.id}</td>
+      <td>
+        <button
+          type="button"
+          className="detail-icon-button"
+          onClick={() => onDeletePost?.(post)}
+          disabled={isRemoving}
+          aria-label={`Delete post ${post.id}`}
+          title="Delete post"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+          </svg>
+        </button>
+      </td>
     </tr>
   );
 }
@@ -63,16 +84,18 @@ export default function DetailTable(props) {
   const {
     filteredRows,
     isAccountsView,
+    onDeletePost,
     onRemoveAccount,
     removingAccountId,
+    removingPostId,
   } = props;
   return (
     <section className="detail-table-card">
       <table className="detail-table">
-        <thead>{isAccountsView ? <tr><th>Username</th><th>Platform</th><th>Status</th><th>ID</th><th>Action</th></tr> : <tr><th>Content</th><th>Publish at</th><th>Status</th><th>ID</th></tr>}</thead>
+        <thead>{isAccountsView ? <tr><th>Username</th><th>Platform</th><th>Status</th><th>ID</th><th>Action</th></tr> : <tr><th>Content</th><th>Publish at</th><th>Status</th><th>Account</th><th>ID</th><th>Action</th></tr>}</thead>
         <tbody>
           {!filteredRows.length ? <EmptyRow isAccountsView={isAccountsView} /> : null}
-          {isAccountsView ? filteredRows.map((account) => <AccountRow key={account.id} account={account} onRemoveAccount={onRemoveAccount} removingAccountId={removingAccountId} />) : filteredRows.map((post) => <PostRow key={post.id} post={post} />)}
+          {isAccountsView ? filteredRows.map((account) => <AccountRow key={account.id} account={account} onRemoveAccount={onRemoveAccount} removingAccountId={removingAccountId} />) : filteredRows.map((post) => <PostRow key={post.id} post={post} onDeletePost={onDeletePost} removingPostId={removingPostId} />)}
         </tbody>
       </table>
     </section>

@@ -31,13 +31,7 @@ export function summarizeTargets(targets) {
   if (!Array.isArray(targets) || !targets.length) return "No targets";
   return targets
     .map((target) =>
-      [
-        String(target?.username || "").trim() || target?.account_id || "unknown",
-        String(target?.platform || "").trim(),
-        String(target?.status || "").trim(),
-      ]
-        .filter(Boolean)
-        .join(" - ")
+      String(target?.username || "").trim() || target?.account_id || "unknown"
     )
     .join(", ");
 }
