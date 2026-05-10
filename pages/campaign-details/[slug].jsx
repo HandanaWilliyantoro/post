@@ -19,7 +19,7 @@ import { getCampaignAccountsPage, listIdleAccounts } from "@/lib/accounts/campai
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listPostsPage } from "@/lib/post/queries/listPosts";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
-import { getCurrentEasternDateTimeInput } from "@/lib/utils/easternTime";
+import { getEasternDateTimeInputAfterMinutes } from "@/lib/utils/easternTime";
 
 function sanitizePage(value) {
   const parsed = Number(value || 1);
@@ -273,11 +273,13 @@ export default function CampaignDetailsPage({
     if (isAccountsView) {
       accountFormik.resetForm();
     } else {
+      const defaultPublishAt = getEasternDateTimeInputAfterMinutes(60);
+
       postFormik.resetForm({
         values: {
           content: "",
-          titleVariants: "",
-          publish_at: getCurrentEasternDateTimeInput(),
+          minPublishAt: defaultPublishAt,
+          publish_at: defaultPublishAt,
           video: null,
         },
       });

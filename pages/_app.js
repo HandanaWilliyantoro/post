@@ -40,6 +40,14 @@ export default function App({ Component, pageProps }) {
   }, [router.events]);
 
   useEffect(() => {
+    fetch("/api/post-publish-callbacks/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 5 }),
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handleUnhandledRejection = (event) => {
       const reason = event?.reason;
       const message =

@@ -1,6 +1,7 @@
 import postonceClient from "@/lib/api/postonceClient";
 import { getPostById, updatePost } from "@/lib/post";
 import { mergePostDetails, removeLocalPost, replacePostWithNewVideo } from "@/lib/post/api/postDetails";
+import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
 import { parsePostPatchPayload } from "@/lib/post/api/requestParsers";
 
 export const config = {
@@ -12,6 +13,7 @@ function errorMessage(error, fallback) {
 }
 
 export default async function handler(req, res) {
+  startPostPublishCallbackWatcher();
   const postId = String(req.query?.id || "").trim();
   if (!postId) return res.status(400).json({ success: false, error: "id is required" });
 

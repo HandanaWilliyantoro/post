@@ -140,9 +140,9 @@
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1.5rem;
+  padding: clamp(1rem, 4vh, 2.5rem) 1.5rem;
   overflow-y: auto;
   background: rgba(16, 33, 43, 0.55);
   backdrop-filter: blur(10px);
@@ -150,8 +150,11 @@
 }
 
 .detail-modal {
+  display: flex;
+  flex-direction: column;
   width: min(500px, 100%);
   max-height: calc(100vh - 3rem);
+  margin: 0 auto;
   border-radius: 26px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background:
@@ -193,5 +196,8 @@
 }
 
 .detail-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1rem 1.1rem 1.1rem;
 }

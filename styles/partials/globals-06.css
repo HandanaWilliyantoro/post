@@ -1,8 +1,8 @@
 .campaign-scheduler-form {
   display: grid;
-  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
-  gap: 0.85rem;
-  align-items: end;
+  grid-template-columns: minmax(280px, 0.76fr) minmax(0, 1.24fr);
+  gap: 1rem;
+  align-items: stretch;
 }
 
 .campaign-scheduler-field {
@@ -16,9 +16,168 @@
 }
 
 .campaign-scheduler-actions {
-  grid-column: 1 / -1;
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
+}
+
+.campaign-scheduler-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top left, rgba(36, 154, 90, 0.16), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(234, 124, 77, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(246, 252, 249, 0.9), rgba(255, 255, 255, 0.78));
+  padding: 1.15rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.campaign-scheduler-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  border-radius: 999px;
+  background: rgba(36, 154, 90, 0.1);
+  color: rgba(21, 128, 61, 0.96);
+  padding: 0.38rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.campaign-scheduler-copy {
+  margin: 0;
+  color: rgba(24, 32, 38, 0.84);
+  font-size: 0.94rem;
+  line-height: 1.68;
+}
+
+.campaign-scheduler-steps {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.campaign-scheduler-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  padding: 0.75rem 0.85rem;
+}
+
+.campaign-scheduler-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  background: rgba(24, 32, 38, 0.06);
+  color: rgba(24, 32, 38, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.campaign-scheduler-step-copy {
+  margin: 0.1rem 0 0;
+  color: rgba(24, 32, 38, 0.88);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.campaign-scheduler-example {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border-radius: 20px;
+  border: 1px dashed rgba(24, 32, 38, 0.16);
+  background: rgba(255, 255, 255, 0.5);
+  padding: 0.85rem 0.95rem;
+}
+
+.campaign-scheduler-example-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.campaign-scheduler-example-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(24, 32, 38, 0.06);
+  color: rgba(24, 32, 38, 0.84);
+  padding: 0.42rem 0.72rem;
+  font-family: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.campaign-scheduler-example-pill-accent {
+  background: rgba(36, 154, 90, 0.12);
+  color: rgba(21, 128, 61, 0.96);
+}
+
+.campaign-scheduler-example-arrow {
+  color: rgba(94, 106, 114, 0.9);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.campaign-scheduler-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.campaign-scheduler-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.44fr) minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.campaign-scheduler-panel {
+  gap: 0.5rem;
+}
+
+.campaign-scheduler-caption-input {
+  min-height: 152px;
+}
+
+.campaign-scheduler-path-input {
+  font-family: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+}
+
+.campaign-scheduler-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-radius: 18px;
+  background: rgba(24, 32, 38, 0.04);
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  padding: 0.8rem 0.95rem;
+}
+
+.campaign-scheduler-note-copy {
+  margin: 0;
+  color: rgba(94, 106, 114, 0.94);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.campaign-scheduler-submit {
+  width: auto;
+  min-width: 250px;
 }
 
 .campaign-progress-trigger {
@@ -69,6 +228,17 @@
   font-size: 0.84rem;
   line-height: 1.55;
   word-break: break-word;
+}
+
+.campaign-progress-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.campaign-progress-cancel {
+  width: auto;
+  min-width: 220px;
 }
 
 .detail-shell {

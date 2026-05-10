@@ -28,6 +28,7 @@ export default async function handler(req, res) {
 
       if (
         progress.status === "completed" ||
+        progress.status === "cancelled" ||
         progress.status === "failed" ||
         (campaignSlug && progress.campaignSlug !== campaignSlug)
       ) {

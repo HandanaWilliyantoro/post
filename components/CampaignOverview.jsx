@@ -5,6 +5,9 @@ import BulkPublishProgressModal from "@/components/campaignOverview/BulkPublishP
 import BulkPublishSection from "@/components/campaignOverview/BulkPublishSection";
 import MetricChartCard from "@/components/campaignOverview/MetricChartCard";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
+import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
+
+const ACTIVE_BULK_PUBLISH_STATUSES = ["queued", "running", "cancelling"];
 
 const metricDefinitions = [
   { key: "totalAccounts", label: "Total Number of Accounts" },
@@ -20,12 +23,46 @@ export default function CampaignOverview({ actions, campaign }) {
   const [progress, setProgress] = useState(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const isPending = pendingMetricKey !== null;
-  const isCurrentCampaignRunning = progress?.campaignSlug === campaign.slug && ["queued", "running"].includes(progress?.status);
-  const isAnyJobActive = ["queued", "running"].includes(progress?.status);
+  const hasCurrentCampaignProgress = progress?.campaignSlug === campaign.slug && progress?.status && progress.status !== "idle";
+  const isCurrentCampaignRunning = progress?.campaignSlug === campaign.slug && ACTIVE_BULK_PUBLISH_STATUSES.includes(progress?.status);
+  const isOtherCampaignRunning = progress?.campaignSlug !== campaign.slug && ACTIVE_BULK_PUBLISH_STATUSES.includes(progress?.status);
+  const isAnyJobActive = ACTIVE_BULK_PUBLISH_STATUSES.includes(progress?.status);
 
   useEffect(() => { if (schedulerError) showErrorSnackbar(schedulerError); }, [schedulerError]);
   useEffect(() => { if (schedulerSuccess) showSuccessSnackbar(schedulerSuccess); }, [schedulerSuccess]);
+  useEffect(() => {
+    loadProgress();
+  }, []);
+  useEffect(() => {
+    if (!isCurrentCampaignRunning) {
+      return undefined;
+    }
+
+    const stream = new EventSource(`/api/bulk-publish-stream?campaignSlug=${encodeURIComponent(campaign.slug)}`);
+
+    stream.onmessage = (event) => {
+      try {
+        const nextProgress = JSON.parse(event.data);
+        setProgress(nextProgress);
+
+        if (["completed", "failed", "cancelled"].includes(nextProgress?.status)) {
+          stream.close();
+        }
+      } catch {
+        // Ignore malformed keep-alive payloads.
+      }
+    };
+
+    stream.onerror = () => {
+      stream.close();
+    };
+
+    return () => {
+      stream.close();
+    };
+  }, [campaign.slug, isCurrentCampaignRunning]);
 
   function openDetails(metricKey) {
     if (isPending) return;
@@ -50,6 +87,32 @@ export default function CampaignOverview({ actions, campaign }) {
     }
   }
 
+  async function cancelBulkPublish() {
+    setCancelLoading(true);
+    setSchedulerError("");
+    setSchedulerSuccess("");
+
+    try {
+      const response = await fetch("/api/bulk-publish", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignSlug: campaign.slug }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to cancel bulk publish");
+      }
+
+      setProgress(payload.data);
+      setSchedulerSuccess("Bulk publish cancel requested.");
+    } catch (error) {
+      setSchedulerError(error.message || "Failed to cancel bulk publish");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
   return (
     <section className="campaign-overview">
       <header className="campaign-top-header"><div><h1 className="campaign-top-title">{campaign.label}</h1><p className="campaign-top-description">{campaign.description}</p><p className="campaign-detail-hint">Type: {campaign.campaignType || "manual"}{campaign.campaignType === "auto-scan" && campaign.campaignId ? ` | Campaign ID: ${campaign.campaignId}` : ""}</p></div>{actions ? <div className="campaign-top-actions">{actions}</div> : null}</header>
@@ -64,18 +127,22 @@ export default function CampaignOverview({ actions, campaign }) {
           disabled={isAnyJobActive}
           error={schedulerError}
           success={schedulerSuccess}
+          hasProgress={hasCurrentCampaignProgress}
           isRunning={isCurrentCampaignRunning}
+          isBlockedByOtherCampaign={isOtherCampaignRunning}
+          activeCampaignSlug={isAnyJobActive ? progress?.campaignSlug : ""}
           progressLoading={progressLoading}
           onLoadProgress={() => loadProgress(true)}
           onSubmit={async (values, helpers) => {
             setSchedulerError("");
             setSchedulerSuccess("");
             try {
-              const response = await fetch("/api/bulk-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignSlug: campaign.slug, startDate: values.startDate, videoDir: values.videoDir }) });
+              const publishAtIso = easternDateTimeInputToIso(values.publishAt);
+              const response = await fetch("/api/bulk-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignSlug: campaign.slug, caption: values.caption, publishAt: values.publishAt, publishMode: values.publishMode, videoDir: values.videoDir }) });
               const payload = await response.json();
               if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to start bulk publish");
               setSchedulerSuccess("Bulk publish started in the background.");
-              setProgress((current) => ({ ...(current || {}), campaignSlug: campaign.slug, startDate: values.startDate, videoDir: values.videoDir, status: "queued", percentage: 0, completedCount: 0, totalCount: 0 }));
+              setProgress((current) => ({ ...(current || {}), campaignSlug: campaign.slug, caption: values.caption, publishAt: publishAtIso, publishMode: values.publishMode, videoDir: values.videoDir, status: "queued", percentage: 0, completedCount: 0, processedCount: 0, failedCount: 0, totalCount: 0, totalFiles: 0, matchedCount: 0, skippedVideoCount: 0, missingAccountCount: 0 }));
               setShowProgressModal(true);
             } catch (error) {
               setSchedulerError(error.message || "Failed to start bulk publish");
@@ -87,7 +154,14 @@ export default function CampaignOverview({ actions, campaign }) {
       ) : null}
 
       <p className="campaign-detail-hint">{isPending ? "Opening details..." : "Tip: Click a chart card to drill into the underlying accounts or posts."}</p>
-      {campaign.slug !== "kick-campaign" && showProgressModal && isCurrentCampaignRunning ? <BulkPublishProgressModal progress={progress} onClose={() => setShowProgressModal(false)} /> : null}
+      {campaign.slug !== "kick-campaign" && showProgressModal && hasCurrentCampaignProgress ? (
+        <BulkPublishProgressModal
+          progress={progress}
+          cancelLoading={cancelLoading}
+          onCancel={cancelBulkPublish}
+          onClose={() => setShowProgressModal(false)}
+        />
+      ) : null}
     </section>
   );
 }

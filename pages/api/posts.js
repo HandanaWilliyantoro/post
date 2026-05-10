@@ -7,6 +7,7 @@ import {
   buildPostDuplicateKey,
   findDuplicatePost,
 } from "@/lib/post/duplicateGuard";
+import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
 import { scheduleVideoPosts } from "@/lib/pipeline/scheduleVideoPosts";
 import { formatErrorForLog } from "@/lib/utils/formatErrorForLog";
 import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
@@ -51,14 +52,9 @@ function getSingleFile(value) {
   return value;
 }
 
-function parseTitleVariants(value) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 export default async function handler(req, res) {
+  startPostPublishCallbackWatcher();
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -67,7 +63,6 @@ export default async function handler(req, res) {
     const { fields, files } = await parseForm(req);
     const campaignSlug = String(getSingleValue(fields.campaignSlug) || "").trim();
     const content = String(getSingleValue(fields.content) || "").trim();
-    const titleVariants = parseTitleVariants(getSingleValue(fields.titleVariants));
     const publishAt = String(getSingleValue(fields.publish_at) || "").trim();
     const uploadedFile = getSingleFile(files.video);
 
@@ -81,12 +76,6 @@ export default async function handler(req, res) {
       return res
         .status(400)
         .json({ success: false, error: "content is required" });
-    }
-
-    if (!titleVariants.length) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Comma-separated titles are required" });
     }
 
     if (!publishAt || Number.isNaN(new Date(publishAt).getTime())) {
@@ -120,18 +109,12 @@ export default async function handler(req, res) {
       });
     }
 
-    if (titleVariants.length < accounts.length) {
-      return res.status(400).json({
-        success: false,
-        error: `Provide at least ${accounts.length} comma-separated titles for ${accounts.length} assigned account${accounts.length === 1 ? "" : "s"}`,
-      });
-    }
-
-    const publishAtIso = easternDateTimeInputToIso(publishAt);
     const sourceFile = {
       name: uploadedFile.originalFilename,
       path: uploadedFile.filepath,
     };
+
+    const publishAtIso = easternDateTimeInputToIso(publishAt);
     const duplicateKey = buildPostDuplicateKey({
       campaignSlug,
       content,
@@ -158,7 +141,6 @@ export default async function handler(req, res) {
       campaign,
       accounts,
       content,
-      titleVariants,
       publishAt: publishAtIso,
       sourceFile,
       sourceFilePath: uploadedFile.filepath,
@@ -173,7 +155,6 @@ export default async function handler(req, res) {
       meta: {
         targetCount: accounts.length,
         createdCount: createdPosts.length,
-        titleProvider: result?.variantMetadata?.titleProvider || null,
       },
     });
   } catch (error) {
