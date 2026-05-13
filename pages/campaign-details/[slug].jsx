@@ -18,8 +18,12 @@ import Layout from "@/components/Layout";
 import { getCampaignAccountsPage, listIdleAccounts } from "@/lib/accounts/campaignAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listPostsPage } from "@/lib/post/queries/listPosts";
+import { normalizePostStatusFilter } from "@/lib/post/statusFilters";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
-import { getEasternDateTimeInputAfterMinutes } from "@/lib/utils/easternTime";
+import {
+  getEasternDateTimeInputAfterMinutes,
+  normalizeEasternDateInput,
+} from "@/lib/utils/easternTime";
 
 function sanitizePage(value) {
   const parsed = Number(value || 1);
@@ -33,6 +37,8 @@ export async function getServerSideProps({ params, query }) {
   const metric = normalizeMetric(query?.metric);
   const page = sanitizePage(query?.page);
   const queryText = String(query?.q || "").trim();
+  const publishDate = normalizeEasternDateInput(query?.publishDate);
+  const statusFilter = normalizePostStatusFilter(query?.status);
   const idleAccounts = metric === "totalAccounts" ? await listIdleAccounts() : [];
 
   if (metric === "totalAccounts") {
@@ -49,6 +55,8 @@ export async function getServerSideProps({ params, query }) {
         metric,
         page: accountsPage.page,
         pageSize: accountsPage.pageSize,
+        publishDate,
+        statusFilter,
         queryText,
         rows: accountsPage.items,
         totalItems: accountsPage.totalItems,
@@ -60,6 +68,8 @@ export async function getServerSideProps({ params, query }) {
     campaignSlug: campaign.slug,
     page,
     pageSize: DEFAULT_PAGE_SIZE,
+    publishDate,
+    status: statusFilter,
     queryText,
   });
 
@@ -75,6 +85,8 @@ export async function getServerSideProps({ params, query }) {
       metric,
       page: postsPage.page,
       pageSize: postsPage.pageSize,
+      publishDate,
+      statusFilter,
       queryText,
       rows: postsPage.items,
       totalItems: postsPage.totalItems,
@@ -90,11 +102,15 @@ export default function CampaignDetailsPage({
   metric,
   page,
   pageSize,
+  publishDate,
+  statusFilter,
   queryText,
   rows,
   totalItems,
 }) {
   const router = useRouter();
+  const [publishDateFilter, setPublishDateFilter] = useState(publishDate);
+  const [postStatusFilter, setPostStatusFilter] = useState(statusFilter);
   const [searchText, setSearchText] = useState(queryText);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formError, setFormError] = useState("");
@@ -113,10 +129,20 @@ export default function CampaignDetailsPage({
     setSearchText(queryText);
   }, [queryText]);
 
+  useEffect(() => {
+    setPublishDateFilter(publishDate);
+  }, [publishDate]);
+
+  useEffect(() => {
+    setPostStatusFilter(statusFilter);
+  }, [statusFilter]);
+
   function buildQuery(overrides = {}) {
     const nextQuery = {
       slug: campaign.slug,
       metric,
+      ...(publishDateFilter ? { publishDate: publishDateFilter } : {}),
+      ...(postStatusFilter ? { status: postStatusFilter } : {}),
       ...(searchText.trim() ? { q: searchText.trim() } : {}),
       ...overrides,
     };
@@ -127,6 +153,14 @@ export default function CampaignDetailsPage({
 
     if (!nextQuery.q) {
       delete nextQuery.q;
+    }
+
+    if (!nextQuery.publishDate) {
+      delete nextQuery.publishDate;
+    }
+
+    if (!nextQuery.status) {
+      delete nextQuery.status;
     }
 
     return nextQuery;
@@ -147,18 +181,29 @@ export default function CampaignDetailsPage({
     const timeoutId = window.setTimeout(() => {
       const normalized = searchText.trim();
       const current = String(router.query?.q || "").trim();
+      const currentPublishDate = String(router.query?.publishDate || "").trim();
+      const currentStatus = String(router.query?.status || "").trim();
 
-      if (normalized === current) {
+      if (
+        normalized === current &&
+        publishDateFilter === currentPublishDate &&
+        postStatusFilter === currentStatus
+      ) {
         return;
       }
 
-      void navigate({ q: normalized, page: 1 });
+      void navigate({
+        q: normalized,
+        page: 1,
+        publishDate: publishDateFilter,
+        status: postStatusFilter,
+      });
     }, 250);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [searchText]);
+  }, [postStatusFilter, publishDateFilter, searchText]);
 
   const accountFormik = useAccountForm({
     campaignSlug: campaign.slug,
@@ -303,9 +348,13 @@ export default function CampaignDetailsPage({
         <DetailControls
           filteredCount={totalItems}
           isAccountsView={isAccountsView}
+          publishDate={publishDateFilter}
           queryText={searchText}
+          statusFilter={postStatusFilter}
           totalCount={totalItems}
+          onPublishDateChange={setPublishDateFilter}
           onQueryChange={setSearchText}
+          onStatusFilterChange={setPostStatusFilter}
         />
         <DetailTable
           filteredRows={rows}

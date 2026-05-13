@@ -6,15 +6,26 @@ import { formatEasternDateTime } from "@/lib/utils/easternTime";
 export default function BulkPublishProgressModal({
   progress,
   cancelLoading = false,
+  retryFailedLoading = false,
   onCancel,
+  onRetryFailed,
   onClose,
 }) {
   if (!progress) return null;
   const isStaggeredMode = progress.publishMode === "stagger-2h";
   const isCancelable = ["queued", "running"].includes(progress.status);
-  const progressCopy = isStaggeredMode
-    ? "The job is scanning the folder, ignoring filenames, rotating videos across assigned campaign accounts in order, and creating PostOnce posts in the background."
-    : "The job is scanning the folder, matching filenames to assigned account usernames, and creating PostOnce posts in the background.";
+  const canRetryFailed =
+    !isCancelable &&
+    progress.status !== "cancelling" &&
+    Number(progress?.failedCount || 0) > 0;
+  const retryPendingCount = Number(progress?.retryPendingCount || 0);
+  const progressCopy = progress.status === "queued"
+    ? "This run is queued in the background. It will start automatically after earlier bulk publish work finishes."
+    : retryPendingCount > 0
+      ? "The job is auto-retrying failed posts in the background until every post is scheduled or you cancel the run."
+    : isStaggeredMode
+      ? "The job is scanning the folder, ignoring filenames, rotating videos across assigned campaign accounts in order, and creating PostOnce posts in the background."
+      : "The job is scanning the folder, matching filenames to assigned account usernames, and creating PostOnce posts in the background.";
   const fileCountLabel = isStaggeredMode ? "Assigned Files" : "Matched Files";
   const accountCountLabel = isStaggeredMode ? "Unused Accounts" : "Missing Accounts";
   const accountSamplesLabel = isStaggeredMode
@@ -53,6 +64,10 @@ export default function BulkPublishProgressModal({
             <p className="dashboard-stat-value">{progress.failedCount || 0}</p>
           </div>
           <div className="dashboard-stat-card">
+            <p className="dashboard-stat-label">Retry Attempts</p>
+            <p className="dashboard-stat-value">{progress.retryAttemptCount || 0}</p>
+          </div>
+          <div className="dashboard-stat-card">
             <p className="dashboard-stat-label">{fileCountLabel}</p>
             <p className="dashboard-stat-value">{progress.matchedCount || 0} / {progress.totalFiles || 0}</p>
           </div>
@@ -85,6 +100,20 @@ export default function BulkPublishProgressModal({
           </div>
         ) : null}
 
+        {progress.nextRetryAt ? (
+          <div className="campaign-progress-path">
+            <p className="dashboard-stat-label">Next Retry At</p>
+            <p className="campaign-progress-path-value">{formatEasternDateTime(progress.nextRetryAt)}</p>
+          </div>
+        ) : null}
+
+        {progress.createdAt || progress.queuedAt ? (
+          <div className="campaign-progress-path">
+            <p className="dashboard-stat-label">Queued At</p>
+            <p className="campaign-progress-path-value">{formatEasternDateTime(progress.createdAt || progress.queuedAt)}</p>
+          </div>
+        ) : null}
+
         {progress.lastProcessedVideo || progress.lastProcessedUsername ? (
           <div className="campaign-progress-path">
             <p className="dashboard-stat-label">Last Processed</p>
@@ -114,10 +143,21 @@ export default function BulkPublishProgressModal({
           </div>
         ) : null}
 
+        {Array.isArray(progress.failedJobSamples) && progress.failedJobSamples.length ? (
+          <div className="campaign-progress-path">
+            <p className="dashboard-stat-label">Failed Samples</p>
+            <div className="campaign-progress-path-value">
+              {progress.failedJobSamples.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {progress.lastError ? <p className="detail-form-message detail-form-message-error">{progress.lastError}</p> : null}
         {progress.error ? <p className="detail-form-message detail-form-message-error">{progress.error}</p> : null}
 
-        {isCancelable || progress.status === "cancelling" ? (
+        {isCancelable || progress.status === "cancelling" || canRetryFailed ? (
           <div className="campaign-progress-actions">
             <PrimaryButton
               type="button"
@@ -127,16 +167,28 @@ export default function BulkPublishProgressModal({
             >
               Close
             </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              className="dashboard-button-inline detail-action-button campaign-progress-cancel"
-              onClick={onCancel}
-              disabled={cancelLoading || !isCancelable}
-            >
-              {cancelLoading || progress.status === "cancelling"
-                ? "Canceling..."
-                : "Cancel bulk publish"}
-            </PrimaryButton>
+            {isCancelable || progress.status === "cancelling" ? (
+              <PrimaryButton
+                type="button"
+                className="dashboard-button-inline detail-action-button campaign-progress-cancel"
+                onClick={onCancel}
+                disabled={cancelLoading || !isCancelable}
+              >
+                {cancelLoading || progress.status === "cancelling"
+                  ? "Canceling..."
+                  : "Cancel bulk publish"}
+              </PrimaryButton>
+            ) : null}
+            {canRetryFailed ? (
+              <PrimaryButton
+                type="button"
+                className="dashboard-button-inline detail-action-button"
+                onClick={onRetryFailed}
+                disabled={retryFailedLoading}
+              >
+                {retryFailedLoading ? "Queueing failed posts..." : "Retry failed posts"}
+              </PrimaryButton>
+            ) : null}
           </div>
         ) : null}
       </div>

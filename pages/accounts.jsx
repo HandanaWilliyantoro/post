@@ -6,6 +6,7 @@ import PaginationControls, {
   DEFAULT_PAGE_SIZE,
 } from "@/components/PaginationControls";
 import PrimaryButton from "@/components/PrimaryButton";
+import { formatAccountPlatformLabel } from "@/lib/accounts/platforms";
 import { listLocalAccountsPage } from "@/lib/accounts/campaignAccounts";
 import { getCampaignRoutes } from "@/lib/campaigns";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
@@ -22,11 +23,11 @@ function buildAccountRows({ localAccounts, campaigns }) {
       ...account,
       id: account?.id || account?.username || "-",
       username: account?.username || "-",
-      platform: account?.platform || "instagram",
+      platform: formatAccountPlatformLabel(account?.platform || "instagram"),
       niche:
         String(account?.niche || "streaming").trim().toLowerCase() ||
         "streaming",
-      accountStatus: account?.status || (campaignSlug ? "active" : "idle"),
+      accountStatus: account?.status || "-",
       campaignSlug,
       assignedCampaignLabel: campaignSlug
         ? campaignLabels.get(campaignSlug) || campaignSlug

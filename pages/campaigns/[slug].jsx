@@ -27,6 +27,7 @@ export async function getServerSideProps({ params }) {
   const accounts = await getAccounts({ campaignSlug: campaign.slug });
   const totalAccounts = accounts.length;
   const posts = await listAllPosts({ campaignSlug: campaign.slug });
+  const livePosts = posts.filter((post) => post?.localOnly !== true);
 
   return {
     props: {
@@ -44,9 +45,9 @@ export async function getServerSideProps({ params }) {
           },
           totalPosts: {
             ...campaign.metrics.totalPosts,
-            value: posts.length,
+            value: livePosts.length,
             trend: buildCountTrend(
-              posts.length,
+              livePosts.length,
               campaign.metrics.totalPosts.trend.length
             ),
           },

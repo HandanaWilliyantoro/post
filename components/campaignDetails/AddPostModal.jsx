@@ -13,7 +13,7 @@ export default function AddPostModal({ assignedAccountsCount, disableAddPost, fo
           <label className="detail-form-field">
             <span className="detail-form-label">Assigned accounts</span>
             <div className="detail-form-static">{assignedAccountsCount} target{assignedAccountsCount === 1 ? "" : "s"}</div>
-            <span className="detail-post-subtle">Posting will target every account assigned to this campaign.</span>
+            <span className="detail-post-subtle">The post is queued in the background and targets exactly the accounts currently assigned to this campaign.</span>
           </label>
           <label className="detail-form-field">
             <span className="detail-form-label">Publish at (Eastern Time)</span>
@@ -33,7 +33,7 @@ export default function AddPostModal({ assignedAccountsCount, disableAddPost, fo
         {formSuccess ? <p className="detail-form-message detail-form-message-success">{formSuccess}</p> : null}
         <div className="detail-modal-actions">
           <PrimaryButton className="dashboard-button-inline" variant="ghost" onClick={onClose} type="button">Cancel</PrimaryButton>
-          <PrimaryButton className="dashboard-button-inline detail-action-button" type="submit" disabled={formik.isSubmitting || disableAddPost}>{formik.isSubmitting ? "Posting..." : "Post"}</PrimaryButton>
+          <PrimaryButton className="dashboard-button-inline detail-action-button" type="submit" disabled={formik.isSubmitting || disableAddPost}>{formik.isSubmitting ? "Queueing..." : "Queue post"}</PrimaryButton>
         </div>
       </form>
     </ModalShell>

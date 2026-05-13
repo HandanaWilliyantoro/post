@@ -1,4 +1,5 @@
 import StatusPill from "@/components/campaignDetails/StatusPill";
+import { formatAccountPlatformLabel } from "@/lib/accounts/platforms";
 import {
   formatDate,
   shorten,
@@ -22,7 +23,7 @@ function AccountRow({ account, onRemoveAccount, removingAccountId }) {
   return (
     <tr key={account.id}>
       <td className="detail-strong">{account.username || "-"}</td>
-      <td>{account.platform || "-"}</td>
+      <td>{account.platform ? formatAccountPlatformLabel(account.platform) : "-"}</td>
       <td><StatusPill value={account.status} /></td>
       <td className="detail-mono">{account.id}</td>
       <td>

@@ -64,14 +64,14 @@ export default function useCreatePostForm({ campaignSlug, router, setFormError, 
         if (!response.ok || !payload?.success) {
           throw new Error(payload?.error || "Failed to create post");
         }
-        const createdCount = Number(payload?.meta?.createdCount || 0);
         const targetCount = Number(payload?.meta?.targetCount || 0);
+        const queued = payload?.meta?.queued === true;
         if (payload?.data) {
           setPostRows((current) => [payload.data, ...current]);
         }
         setFormSuccess(
-          createdCount > 1
-            ? `Created ${createdCount} posts for ${targetCount} accounts.`
+          queued
+            ? `Post queued in the background for ${targetCount} account${targetCount === 1 ? "" : "s"}.`
             : `Post created and targeted ${targetCount} account${targetCount === 1 ? "" : "s"}.`
         );
         helpers.resetForm({

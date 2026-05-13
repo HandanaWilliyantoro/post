@@ -1,10 +1,18 @@
-import { loadProgress } from "@/lib/utils/progressManager";
+import { ensureBulkPublishQueueRunning } from "@/lib/pipeline/bulkPublishQueue";
+import {
+  loadLatestProgress,
+  loadProgress,
+} from "@/lib/utils/progressManager";
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+function isTerminalStatus(status) {
+  return ["completed", "cancelled", "failed"].includes(status);
+}
 
 export default async function handler(req, res) {
   res.writeHead(200, {
@@ -19,38 +27,54 @@ export default async function handler(req, res) {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  const { campaignSlug } = req.query;
+  const runId = String(req.query?.runId || "").trim();
+  const campaignSlug = String(req.query?.campaignSlug || "").trim();
 
-  const interval = setInterval(async () => {
+  const readProgress = async () => {
+    ensureBulkPublishQueueRunning();
+
+    if (runId) {
+      return loadProgress(runId);
+    }
+
+    return loadLatestProgress({ campaignSlug });
+  };
+
+  const stop = () => {
+    clearInterval(interval);
+    clearInterval(keepAlive);
+    res.end();
+  };
+
+  const poll = async () => {
     try {
-      const progress = await loadProgress();
+      const progress = await readProgress();
+
+      if (runId && !progress?.runId) {
+        send({ status: "failed", error: "Bulk publish run not found" });
+        stop();
+        return;
+      }
+
       send(progress);
 
-      if (
-        progress.status === "completed" ||
-        progress.status === "cancelled" ||
-        progress.status === "failed" ||
-        (campaignSlug && progress.campaignSlug !== campaignSlug)
-      ) {
-        clearInterval(interval);
-        clearInterval(keepAlive);
-        res.end();
+      if (isTerminalStatus(progress.status)) {
+        stop();
       }
     } catch (error) {
       send({ status: "failed", error: error.message });
-      clearInterval(interval);
-      clearInterval(keepAlive);
-      res.end();
+      stop();
     }
-  }, 2000);
+  };
 
+  const interval = setInterval(poll, 2000);
   const keepAlive = setInterval(() => {
     res.write(": keep-alive\n\n");
   }, 15000);
 
+  void poll();
+
   req.on("close", () => {
-    clearInterval(interval);
-    clearInterval(keepAlive);
-    res.end();
+    stop();
   });
 }

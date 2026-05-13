@@ -6,9 +6,11 @@ import { getAccounts } from "@/lib/accounts/getAccounts";
 import {
   buildPostDuplicateKey,
   findDuplicatePost,
+  isBlockingDuplicatePost,
 } from "@/lib/post/duplicateGuard";
 import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
-import { scheduleVideoPosts } from "@/lib/pipeline/scheduleVideoPosts";
+import { queueManualPost, stageManualPostUpload } from "@/lib/post/manualPostQueue";
+import { buildStoredPostTarget } from "@/lib/post/targets";
 import { formatErrorForLog } from "@/lib/utils/formatErrorForLog";
 import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
 
@@ -50,6 +52,10 @@ function getSingleFile(value) {
   }
 
   return value;
+}
+
+function buildTargetSnapshot(account) {
+  return buildStoredPostTarget(account);
 }
 
 export default async function handler(req, res) {
@@ -109,27 +115,17 @@ export default async function handler(req, res) {
       });
     }
 
-    const sourceFile = {
-      name: uploadedFile.originalFilename,
-      path: uploadedFile.filepath,
-    };
-
     const publishAtIso = easternDateTimeInputToIso(publishAt);
+    const targetSnapshot = accounts.map(buildTargetSnapshot);
     const duplicateKey = buildPostDuplicateKey({
       campaignSlug,
       content,
       publish_at: publishAtIso,
-      targets:
-        campaign.campaignType === "auto-scan"
-          ? []
-          : accounts.map((account) => ({ account_id: account.id })),
+      targets: targetSnapshot,
     });
-    const duplicatePost =
-      campaign.campaignType === "auto-scan"
-        ? null
-        : await findDuplicatePost(duplicateKey);
+    const duplicatePost = await findDuplicatePost(duplicateKey);
 
-    if (duplicatePost) {
+    if (isBlockingDuplicatePost(duplicatePost)) {
       return res.status(409).json({
         success: false,
         error:
@@ -137,24 +133,26 @@ export default async function handler(req, res) {
       });
     }
 
-    const result = await scheduleVideoPosts({
-      campaign,
-      accounts,
+    const stagedUpload = await stageManualPostUpload(uploadedFile);
+    const queuedPost = await queueManualPost({
+      campaignSlug,
+      campaignType: campaign?.campaignType,
+      campaignId: campaign?.campaignId,
+      campaignPassword: campaign?.campaignPassword,
       content,
-      publishAt: publishAtIso,
-      sourceFile,
-      sourceFilePath: uploadedFile.filepath,
-      origin: "manual",
+      publish_at: publishAtIso,
+      duplicateKey,
+      targets: targetSnapshot,
+      fileName: stagedUpload.fileName,
+      filePath: stagedUpload.filePath,
     });
-    const createdPosts = Array.isArray(result?.posts) ? result.posts : [];
-    const primaryPost = createdPosts[0] || null;
 
-    return res.status(201).json({
+    return res.status(202).json({
       success: true,
-      data: primaryPost,
+      data: queuedPost,
       meta: {
         targetCount: accounts.length,
-        createdCount: createdPosts.length,
+        queued: true,
       },
     });
   } catch (error) {

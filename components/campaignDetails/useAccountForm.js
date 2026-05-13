@@ -14,7 +14,7 @@ export default function useAccountForm({ campaignSlug, idleAccounts = [], router
       setFormSuccess("");
       try {
         const selectedAccount = idleAccounts.find((account) => String(account.id) === values.accountId);
-        const response = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: values.accountId, username: selectedAccount?.username, campaignSlug }) });
+        const response = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: values.accountId, username: selectedAccount?.username, platform: selectedAccount?.platform, campaignSlug }) });
         const payload = await response.json();
         if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create account");
         if (payload.data?.campaignSlug === campaignSlug) {

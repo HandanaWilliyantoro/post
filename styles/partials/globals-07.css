@@ -10,8 +10,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.85rem;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
+}
+
+.detail-controls-main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-end;
 }
 
 .detail-showing {
@@ -29,6 +37,27 @@
 .detail-search {
   flex: 1;
   min-width: 240px;
+}
+
+.detail-date-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.detail-date-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  min-width: 170px;
+}
+
+.detail-date-filter-label {
+  color: rgba(94, 106, 114, 0.9);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .detail-search-input {
@@ -51,6 +80,25 @@
   transform: translateY(-1px);
 }
 
+.detail-date-input {
+  border-radius: 18px;
+  border: 1px solid rgba(24, 32, 38, 0.14);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.9rem 1rem;
+  color: rgba(24, 32, 38, 0.92);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.detail-date-input:focus {
+  outline: none;
+  border-color: rgba(196, 93, 52, 0.45);
+  box-shadow: 0 0 0 4px rgba(234, 124, 77, 0.12);
+  transform: translateY(-1px);
+}
+
 .detail-filter {
   display: flex;
   align-items: center;
@@ -66,11 +114,23 @@
 }
 
 .detail-filter-select {
+  width: 100%;
   border-radius: 16px;
   border: 1px solid rgba(24, 32, 38, 0.14);
   background: rgba(255, 255, 255, 0.78);
   padding: 0.75rem 0.9rem;
   color: rgba(24, 32, 38, 0.92);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.detail-filter-select:focus {
+  outline: none;
+  border-color: rgba(196, 93, 52, 0.45);
+  box-shadow: 0 0 0 4px rgba(234, 124, 77, 0.12);
+  transform: translateY(-1px);
 }
 
 .detail-table-card {

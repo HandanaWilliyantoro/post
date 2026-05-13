@@ -1,6 +1,7 @@
 import postonceClient from "@/lib/api/postonceClient";
 import { getPostById, updatePost } from "@/lib/post";
 import { mergePostDetails, removeLocalPost, replacePostWithNewVideo } from "@/lib/post/api/postDetails";
+import { isQueuedManualPost } from "@/lib/post/manualPostQueue";
 import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
 import { parsePostPatchPayload } from "@/lib/post/api/requestParsers";
 
@@ -21,6 +22,9 @@ export default async function handler(req, res) {
     try {
       const localPost = await getPostById(postId);
       if (!localPost) return res.status(404).json({ success: false, error: "Post not found" });
+      if (localPost.localOnly === true) {
+        return res.status(200).json({ success: true, data: localPost });
+      }
       try {
         return res.status(200).json({ success: true, data: mergePostDetails(localPost, await postonceClient.get(`/posts/${postId}`)) });
       } catch {
@@ -33,6 +37,21 @@ export default async function handler(req, res) {
 
   if (req.method === "DELETE") {
     try {
+      const existingPost = await getPostById(postId);
+
+      if (isQueuedManualPost(existingPost)) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Background manual posts cannot be deleted while they are queued or processing",
+        });
+      }
+
+      if (existingPost?.localOnly === true) {
+        await removeLocalPost(postId);
+        return res.status(200).json({ success: true, id: postId, localOnly: true });
+      }
+
       await postonceClient.delete(`/posts/${postId}`);
       await removeLocalPost(postId);
       return res.status(200).json({ success: true, id: postId });
@@ -45,6 +64,12 @@ export default async function handler(req, res) {
     try {
       const existingPost = await getPostById(postId);
       if (!existingPost) return res.status(404).json({ success: false, error: "Post not found" });
+      if (existingPost.localOnly === true) {
+        return res.status(409).json({
+          success: false,
+          error: "Failed placeholder posts cannot be edited. Retry or delete the failed post instead.",
+        });
+      }
 
       const { payload, replacementFile } = await parsePostPatchPayload(req);
       if (replacementFile?.filepath && replacementFile?.originalFilename) {
