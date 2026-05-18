@@ -1,9 +1,45 @@
+import { useRef, useState } from "react";
+
 import ModalShell from "@/components/campaignDetails/ModalShell";
 import PrimaryButton from "@/components/PrimaryButton";
 import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
 
 export default function AddPostModal({ assignedAccountsCount, disableAddPost, formError, formSuccess, formik, onClose }) {
+  const inputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
   useFormErrorSnackbar(formik);
+  const selectedVideo = formik.values.video;
+
+  function setSelectedVideo(file) {
+    if (!file) {
+      return;
+    }
+
+    const isVideoFile =
+      String(file.type || "").toLowerCase().startsWith("video/") ||
+      /\.(mp4|mov|m4v|avi|mkv|webm)$/i.test(String(file.name || ""));
+
+    if (!isVideoFile) {
+      formik.setFieldTouched("video", true, false);
+      formik.setFieldError("video", "Video file is required");
+      return;
+    }
+
+    formik.setFieldValue("video", file);
+    formik.setFieldTouched("video", true, false);
+    formik.setFieldError("video", undefined);
+
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer?.files?.[0] || null;
+    setSelectedVideo(file);
+  }
 
   return (
     <ModalShell title="Add post" onClose={onClose}>
@@ -22,7 +58,28 @@ export default function AddPostModal({ assignedAccountsCount, disableAddPost, fo
           </label>
           <label className="detail-form-field detail-form-field-wide">
             <span className="detail-form-label">Video</span>
-            <input className="detail-form-input" name="video" type="file" accept="video/*" onChange={(event) => formik.setFieldValue("video", event.currentTarget.files?.[0] || null)} onBlur={() => formik.setFieldTouched("video", true)} required />
+            <input ref={inputRef} className="sr-only" name="video" type="file" accept="video/*" onChange={(event) => setSelectedVideo(event.currentTarget.files?.[0] || null)} onBlur={() => formik.setFieldTouched("video", true)} />
+            <button
+              type="button"
+              className={`detail-file-dropzone${isDragging ? " detail-file-dropzone-dragging" : ""}`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={handleDrop}
+            >
+              <span className="detail-file-dropzone-title">
+                {selectedVideo ? selectedVideo.name : "Drop video here or click to choose a file"}
+              </span>
+              <span className="detail-file-dropzone-meta">
+                {selectedVideo ? "Selected video will be reused for the next queue action." : "Supports drag and drop."}
+              </span>
+            </button>
             <span className="detail-post-subtle">The uploaded video will be sent directly through the PostOnce posting flow.</span>
           </label>
         </div>

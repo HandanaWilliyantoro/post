@@ -2,10 +2,6 @@ import PrimaryButton from "@/components/PrimaryButton";
 import StatusPill from "@/components/campaignDetails/StatusPill";
 import { formatEasternDateTime } from "@/lib/utils/easternTime";
 
-function getModeLabel(mode) {
-  return mode === "stagger-2h" ? "Every 2 Hours" : "Same Time";
-}
-
 function formatRunLabel(run) {
   const runId = String(run?.runId || "").trim();
 
@@ -23,10 +19,19 @@ function isRetryableRun(run) {
   );
 }
 
+function isCancelableRun(run) {
+  return ["queued", "running", "cancelling"].includes(
+    String(run?.status || "").trim()
+  );
+}
+
 export default function RecentRunsTable({
   runs = [],
   selectedRunId = "",
+  cancelRunId = "",
+  cancelLoading = false,
   retryFailedLoading = false,
+  onCancelRun,
   onRetryRun,
   onViewRun,
 }) {
@@ -48,11 +53,10 @@ export default function RecentRunsTable({
           <thead>
             <tr>
               <th>Run</th>
-              <th>Queued at</th>
+              <th>Publish at</th>
               <th>Status</th>
-              <th>Mode</th>
               <th>Processed</th>
-              <th>Scheduled</th>
+              <th>Completed</th>
               <th>Failed</th>
               <th>Actions</th>
             </tr>
@@ -61,6 +65,10 @@ export default function RecentRunsTable({
             {runs.map((run) => {
               const isSelected = run.runId === selectedRunId;
               const canRetryRun = isRetryableRun(run);
+              const canCancelRun = isCancelableRun(run);
+              const isCancelingRun =
+                cancelLoading && cancelRunId === String(run?.runId || "").trim();
+              const retryLabel = "Retry failed";
 
               return (
                 <tr
@@ -77,9 +85,8 @@ export default function RecentRunsTable({
                       </span>
                     </div>
                   </td>
-                  <td>{formatEasternDateTime(run.createdAt || run.queuedAt)}</td>
+                  <td>{formatEasternDateTime(run.publishAt || run.createdAt || run.queuedAt)}</td>
                   <td><StatusPill value={run.status || "idle"} /></td>
-                  <td>{getModeLabel(run.publishMode)}</td>
                   <td>{run.processedCount || 0} / {run.totalCount || 0}</td>
                   <td>{run.completedCount || 0}</td>
                   <td>{run.failedCount || 0}</td>
@@ -92,6 +99,19 @@ export default function RecentRunsTable({
                       >
                         View
                       </button>
+                      {canCancelRun ? (
+                        <PrimaryButton
+                          type="button"
+                          className="dashboard-button-inline detail-action-button campaign-progress-cancel"
+                          variant="ghost"
+                          onClick={() => onCancelRun?.(run.runId)}
+                          disabled={isCancelingRun || run.status === "cancelling"}
+                        >
+                          {isCancelingRun || run.status === "cancelling"
+                            ? "Canceling..."
+                            : "Cancel"}
+                        </PrimaryButton>
+                      ) : null}
                       <PrimaryButton
                         type="button"
                         className="dashboard-button-inline campaign-run-retry-button"
@@ -99,7 +119,7 @@ export default function RecentRunsTable({
                         onClick={() => onRetryRun?.(run.runId)}
                         disabled={!canRetryRun || retryFailedLoading}
                       >
-                        {retryFailedLoading ? "Queueing..." : "Retry failed"}
+                        {retryFailedLoading ? "Queueing..." : retryLabel}
                       </PrimaryButton>
                     </div>
                   </td>

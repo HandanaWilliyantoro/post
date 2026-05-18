@@ -4,6 +4,7 @@ import { SnackbarProvider, useSnackbar } from "notistack";
 
 import "@/styles/globals.css";
 import { bindSnackbar, showErrorSnackbar } from "@/lib/ui/snackbar";
+import { isIgnorableNavigationError } from "@/lib/utils/navigation";
 
 function SnackbarBinder() {
   const { enqueueSnackbar } = useSnackbar();
@@ -50,6 +51,12 @@ export default function App({ Component, pageProps }) {
   useEffect(() => {
     const handleUnhandledRejection = (event) => {
       const reason = event?.reason;
+
+      if (isIgnorableNavigationError(reason)) {
+        event.preventDefault?.();
+        return;
+      }
+
       const message =
         reason?.message ||
         (typeof reason === "string" ? reason : "") ||
@@ -59,6 +66,13 @@ export default function App({ Component, pageProps }) {
     };
 
     const handleWindowError = (event) => {
+      if (
+        isIgnorableNavigationError(event?.error) ||
+        isIgnorableNavigationError(event?.message)
+      ) {
+        return;
+      }
+
       const message =
         event?.error?.message ||
         event?.message ||

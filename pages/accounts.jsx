@@ -131,7 +131,7 @@ export default function AccountsPage({
       }
 
       showSuccessSnackbar("Accounts synced from PostOnce.");
-      await navigate(searchText.trim() ? { q: searchText.trim() } : {});
+      router.reload();
     } catch (error) {
       showErrorSnackbar(error?.message || "Failed to seed accounts");
     } finally {

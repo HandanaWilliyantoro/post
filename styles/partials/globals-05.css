@@ -57,6 +57,10 @@
 .campaign-scheduler-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
   overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(36, 154, 90, 0.1), transparent 24%),
+    radial-gradient(circle at bottom left, rgba(234, 124, 77, 0.1), transparent 28%),
+    rgba(255, 252, 247, 0.86);
 }

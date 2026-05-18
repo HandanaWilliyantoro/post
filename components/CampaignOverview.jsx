@@ -6,6 +6,7 @@ import RecentRunsTable from "@/components/campaignOverview/RecentRunsTable";
 import BulkPublishSection from "@/components/campaignOverview/BulkPublishSection";
 import MetricChartCard from "@/components/campaignOverview/MetricChartCard";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
+import { addHoursToEasternDateTimeInput } from "@/lib/utils/easternTime";
 
 const ACTIVE_BULK_PUBLISH_STATUSES = ["queued", "running", "cancelling"];
 const TERMINAL_BULK_PUBLISH_STATUSES = ["completed", "failed", "cancelled"];
@@ -40,6 +41,20 @@ function upsertRun(runs, nextRun) {
   ]).slice(0, RECENT_RUN_LIMIT);
 }
 
+function resolveNextBulkPublishAtInput(values) {
+  const publishAt = String(values?.publishAt || "").trim();
+
+  if (!publishAt) {
+    return "";
+  }
+
+  try {
+    return addHoursToEasternDateTimeInput(publishAt, 4);
+  } catch {
+    return publishAt;
+  }
+}
+
 export default function CampaignOverview({ actions, campaign }) {
   const router = useRouter();
   const [activeMetricKey, setActiveMetricKey] = useState("totalPosts");
@@ -52,6 +67,7 @@ export default function CampaignOverview({ actions, campaign }) {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelRunId, setCancelRunId] = useState("");
   const [retryFailedLoading, setRetryFailedLoading] = useState(false);
   const [retryAllFailedLoading, setRetryAllFailedLoading] = useState(false);
   const isPending = pendingMetricKey !== null;
@@ -216,12 +232,15 @@ export default function CampaignOverview({ actions, campaign }) {
     }
   }
 
-  async function cancelBulkPublish() {
-    if (!progress?.runId) {
+  async function cancelBulkPublish(runId = progress?.runId) {
+    const resolvedRunId = String(runId || "").trim();
+
+    if (!resolvedRunId) {
       return;
     }
 
     setCancelLoading(true);
+    setCancelRunId(resolvedRunId);
     setSchedulerError("");
     setSchedulerSuccess("");
 
@@ -229,7 +248,10 @@ export default function CampaignOverview({ actions, campaign }) {
       const response = await fetch("/api/bulk-publish", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runId: progress.runId, campaignSlug: campaign.slug }),
+        body: JSON.stringify({
+          runId: resolvedRunId,
+          campaignSlug: campaign.slug,
+        }),
       });
       const payload = await response.json();
 
@@ -237,7 +259,12 @@ export default function CampaignOverview({ actions, campaign }) {
         throw new Error(payload?.error || "Failed to cancel bulk publish");
       }
 
-      setProgress(payload.data);
+      if (resolvedRunId === String(progress?.runId || "").trim()) {
+        setProgress(payload.data);
+      }
+      setSelectedRunId((current) =>
+        current === resolvedRunId ? payload.data?.runId || current : current
+      );
       setRuns((current) => upsertRun(current, payload.data));
       setSchedulerSuccess(
         payload?.message || "Bulk publish cancel requested."
@@ -246,6 +273,7 @@ export default function CampaignOverview({ actions, campaign }) {
       setSchedulerError(error.message || "Failed to cancel bulk publish");
     } finally {
       setCancelLoading(false);
+      setCancelRunId("");
     }
   }
 
@@ -372,7 +400,9 @@ export default function CampaignOverview({ actions, campaign }) {
 
       {campaign.slug !== "kick-campaign" ? (
         <BulkPublishSection
+          assignedAccountCount={Number(campaign?.metrics?.totalAccounts?.value || 0)}
           campaignSlug={campaign.slug}
+          defaultPublishAt={campaign.defaultBulkPublishAt || ""}
           error={schedulerError}
           success={schedulerSuccess}
           hasActiveRun={hasActiveRuns}
@@ -395,7 +425,7 @@ export default function CampaignOverview({ actions, campaign }) {
                   campaignSlug: campaign.slug,
                   caption: values.caption,
                   publishAt: values.publishAt,
-                  publishMode: values.publishMode,
+                  publishMode: "same-time",
                   videoDir: values.videoDir,
                 }),
               });
@@ -406,10 +436,14 @@ export default function CampaignOverview({ actions, campaign }) {
               }
 
               const queuedRun = payload.data;
+              const nextPublishAt = resolveNextBulkPublishAtInput(values);
               setProgress(queuedRun);
               setSelectedRunId(queuedRun.runId || "");
               setRuns((current) => upsertRun(current, queuedRun));
               setShowProgressModal(true);
+              if (nextPublishAt) {
+                helpers.setFieldValue("publishAt", nextPublishAt, false);
+              }
               setSchedulerSuccess(
                 hasActiveRuns
                   ? "Bulk publish added to the background queue."
@@ -428,7 +462,10 @@ export default function CampaignOverview({ actions, campaign }) {
         <RecentRunsTable
           runs={runs}
           selectedRunId={selectedRunId}
+          cancelRunId={cancelRunId}
+          cancelLoading={cancelLoading}
           retryFailedLoading={retryFailedLoading || retryAllFailedLoading}
+          onCancelRun={(runId) => cancelBulkPublish(runId)}
           onRetryRun={(runId) => retryFailedBulkPublish(runId)}
           onViewRun={(runId) => loadRun(runId, true)}
         />
@@ -443,9 +480,9 @@ export default function CampaignOverview({ actions, campaign }) {
       {campaign.slug !== "kick-campaign" && showProgressModal && progress?.runId ? (
         <BulkPublishProgressModal
           progress={progress}
-          cancelLoading={cancelLoading}
+          cancelLoading={cancelLoading && cancelRunId === progress.runId}
           retryFailedLoading={retryFailedLoading}
-          onCancel={cancelBulkPublish}
+          onCancel={() => cancelBulkPublish(progress.runId)}
           onRetryFailed={retryFailedBulkPublish}
           onClose={() => setShowProgressModal(false)}
         />

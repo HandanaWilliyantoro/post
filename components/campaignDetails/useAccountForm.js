@@ -22,7 +22,7 @@ export default function useAccountForm({ campaignSlug, idleAccounts = [], router
         }
         setFormSuccess("Account created.");
         helpers.resetForm();
-        router.replace(router.asPath, undefined, { scroll: false });
+        router.reload();
       } catch (error) {
         setFormError(error.message || "Failed to create account");
       } finally {

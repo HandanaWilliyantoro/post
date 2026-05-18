@@ -197,9 +197,22 @@
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
+.detail-action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .detail-icon-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 26px rgba(16, 33, 43, 0.16);
+}
+
+.detail-icon-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .detail-modal-body {

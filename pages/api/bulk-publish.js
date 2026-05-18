@@ -2,7 +2,10 @@ import {
   cancelBulkPublishRun,
   hasActiveBulkPublishRun,
 } from "@/lib/pipeline/bulkPublishRunRegistry";
-import { ensureBulkPublishQueueRunning } from "@/lib/pipeline/bulkPublishQueue";
+import {
+  ensureBulkPublishQueueRunning,
+  recoverOrphanedBulkPublishRuns,
+} from "@/lib/pipeline/bulkPublishQueue";
 import {
   buildRetryJobsFromFailedPosts,
   resolveRetryableFailedJobs,
@@ -36,9 +39,13 @@ function dedupeRetryJobs(campaignSlug, retryJobs) {
   return retryJobs.filter((job) => {
     const content = String(job?.caption || "").trim();
     const publishAt = String(job?.publishAt || "").trim();
-    const accountId = String(job?.accountId || "").trim();
+    const targets = Array.isArray(job?.targets) && job.targets.length
+      ? job.targets
+      : job?.accountId
+        ? [{ account_id: job.accountId }]
+        : [];
 
-    if (!content || !publishAt || !accountId) {
+    if (!content || !publishAt || !targets.length) {
       return false;
     }
 
@@ -46,7 +53,7 @@ function dedupeRetryJobs(campaignSlug, retryJobs) {
       campaignSlug,
       content,
       publish_at: publishAt,
-      targets: [{ account_id: accountId }],
+      targets,
     });
 
     if (seen.has(key)) {
@@ -61,11 +68,13 @@ function dedupeRetryJobs(campaignSlug, retryJobs) {
 export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
-      ensureBulkPublishQueueRunning();
-
       const runId = String(req.query?.runId || "").trim();
       const campaignSlug = String(req.query?.campaignSlug || "").trim();
       const limit = parseLimit(req.query?.limit, RECENT_RUNS_LIMIT);
+      await recoverOrphanedBulkPublishRuns(
+        runId ? { runId } : { campaignSlug, limit }
+      );
+      ensureBulkPublishQueueRunning();
 
       if (runId) {
         const progress = await loadProgress(runId);
@@ -117,9 +126,10 @@ export default async function handler(req, res) {
 
   if (req.method === "DELETE") {
     try {
-      const runId = String(req.body?.runId || req.query?.runId || "").trim();
+      const body = req.body || {};
+      const runId = String(body?.runId || req.query?.runId || "").trim();
       const campaignSlug = String(
-        req.body?.campaignSlug || req.query?.campaignSlug || ""
+        body?.campaignSlug || req.query?.campaignSlug || ""
       ).trim();
       const activeProgress = runId
         ? await loadProgress(runId)
@@ -197,7 +207,7 @@ export default async function handler(req, res) {
     const campaignSlug = String(req.body?.campaignSlug || "").trim();
     const caption = String(req.body?.caption || "").trim();
     const publishAtInput = String(req.body?.publishAt || "").trim();
-    const publishMode = String(req.body?.publishMode || "same-time").trim();
+    const publishMode = "same-time";
     const videoDir = String(req.body?.videoDir || "").trim();
 
     if (action === "retry-failed") {
@@ -369,12 +379,6 @@ export default async function handler(req, res) {
       return res
         .status(400)
         .json({ success: false, error: "Valid publishAt is required" });
-    }
-
-    if (!["same-time", "stagger-2h"].includes(publishMode)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Valid publish type is required" });
     }
 
     if (!videoDir) {

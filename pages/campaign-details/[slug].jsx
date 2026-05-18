@@ -13,7 +13,10 @@ import PaginationControls, {
 import useAccountForm from "@/components/campaignDetails/useAccountForm";
 import useCreatePostForm from "@/components/campaignDetails/useCreatePostForm";
 import useFeedbackEffects from "@/components/campaignDetails/useFeedbackEffects";
-import { normalizeMetric } from "@/components/campaignDetails/utils";
+import {
+  normalizeMetric,
+  toDateTimeInputValue,
+} from "@/components/campaignDetails/utils";
 import Layout from "@/components/Layout";
 import { getCampaignAccountsPage, listIdleAccounts } from "@/lib/accounts/campaignAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
@@ -21,6 +24,7 @@ import { listPostsPage } from "@/lib/post/queries/listPosts";
 import { normalizePostStatusFilter } from "@/lib/post/statusFilters";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 import {
+  getCurrentEasternDateTimeInput,
   getEasternDateTimeInputAfterMinutes,
   normalizeEasternDateInput,
 } from "@/lib/utils/easternTime";
@@ -28,6 +32,45 @@ import {
 function sanitizePage(value) {
   const parsed = Number(value || 1);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
+function getRetryMediaUrl(post) {
+  const existingMediaUrl = Array.isArray(post?.media)
+    ? post.media
+        .map((item) => String(item?.url || "").trim())
+        .find(Boolean)
+    : "";
+
+  return (
+    existingMediaUrl ||
+    String(
+      post?.media_url || post?.failure?.mediaUrl || post?.failure?.media_url || ""
+    ).trim()
+  );
+}
+
+function buildRetryDraftValues(post) {
+  const currentPublishAt = getCurrentEasternDateTimeInput();
+  const defaultPublishAt = getEasternDateTimeInputAfterMinutes(60);
+  const failedPublishAt = toDateTimeInputValue(post?.publish_at);
+  const canReuseFailedPublishAt =
+    Boolean(failedPublishAt) && failedPublishAt >= currentPublishAt;
+
+  return {
+    message: canReuseFailedPublishAt
+      ? "This failed post has no reusable media URL. Choose the video again to queue it."
+      : "This failed post has no reusable media URL, and its original publish time has already passed. Choose the video again to queue it.",
+    values: {
+      content: String(post?.content || ""),
+      minPublishAt: canReuseFailedPublishAt
+        ? currentPublishAt
+        : defaultPublishAt,
+      publish_at: canReuseFailedPublishAt
+        ? failedPublishAt
+        : defaultPublishAt,
+      video: null,
+    },
+  };
 }
 
 export async function getServerSideProps({ params, query }) {
@@ -117,6 +160,7 @@ export default function CampaignDetailsPage({
   const [formSuccess, setFormSuccess] = useState("");
   const [removingAccountId, setRemovingAccountId] = useState("");
   const [removingPostId, setRemovingPostId] = useState("");
+  const [retryingPostId, setRetryingPostId] = useState("");
   const isAccountsView = metric === "totalAccounts";
   const disableAddPost = !isAccountsView && assignedAccountsCount === 0;
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -222,6 +266,15 @@ export default function CampaignDetailsPage({
     setPostRows: () => {},
   });
 
+  function reopenFailedPostAsDraft(post) {
+    const draft = buildRetryDraftValues(post);
+
+    setFormSuccess("");
+    setFormError(draft.message);
+    postFormik.resetForm({ values: draft.values });
+    setShowAddModal(true);
+  }
+
   function closeAddModal() {
     setShowAddModal(false);
     setFormError("");
@@ -264,7 +317,7 @@ export default function CampaignDetailsPage({
       }
 
       showSuccessSnackbar("Account moved back to idle.");
-      await router.replace(router.asPath, undefined, { scroll: false });
+      router.reload();
     } catch (error) {
       showErrorSnackbar(error?.message || "Failed to remove account");
     } finally {
@@ -303,11 +356,57 @@ export default function CampaignDetailsPage({
       }
 
       showSuccessSnackbar("Post deleted.");
-      await router.replace(router.asPath, undefined, { scroll: false });
+      router.reload();
     } catch (error) {
       showErrorSnackbar(error?.message || "Failed to delete post");
     } finally {
       setRemovingPostId("");
+    }
+  }
+
+  async function handleRetryPost(post) {
+    const postId = String(post?.id || "").trim();
+
+    if (!postId) {
+      showErrorSnackbar("Post id is required");
+      return;
+    }
+
+    if (!getRetryMediaUrl(post)) {
+      reopenFailedPostAsDraft(post);
+      return;
+    }
+
+    setRetryingPostId(postId);
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+        method: "POST",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to retry post");
+      }
+
+      showSuccessSnackbar(payload?.message || "Failed post queued for retry.");
+      router.reload();
+    } catch (error) {
+      const message = error?.message || "Failed to retry post";
+
+      if (
+        message.includes("source video") ||
+        message.includes("uploaded video")
+      ) {
+        reopenFailedPostAsDraft(post);
+        return;
+      }
+
+      showErrorSnackbar(message);
+    } finally {
+      setRetryingPostId("");
     }
   }
 
@@ -362,8 +461,10 @@ export default function CampaignDetailsPage({
           metric={metric}
           onDeletePost={handleDeletePost}
           onRemoveAccount={handleRemoveAccount}
+          onRetryPost={handleRetryPost}
           removingAccountId={removingAccountId}
           removingPostId={removingPostId}
+          retryingPostId={retryingPostId}
         />
         <PaginationControls
           endItem={endItem}

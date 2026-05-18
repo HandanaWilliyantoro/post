@@ -1,4 +1,7 @@
-import { ensureBulkPublishQueueRunning } from "@/lib/pipeline/bulkPublishQueue";
+import {
+  ensureBulkPublishQueueRunning,
+  recoverOrphanedBulkPublishRuns,
+} from "@/lib/pipeline/bulkPublishQueue";
 import {
   loadLatestProgress,
   loadProgress,
@@ -29,8 +32,16 @@ export default async function handler(req, res) {
 
   const runId = String(req.query?.runId || "").trim();
   const campaignSlug = String(req.query?.campaignSlug || "").trim();
+  let recoveryPrimed = false;
 
   const readProgress = async () => {
+    if (!recoveryPrimed) {
+      recoveryPrimed = true;
+      await recoverOrphanedBulkPublishRuns(
+        runId ? { runId } : { campaignSlug, limit: 25 }
+      );
+    }
+
     ensureBulkPublishQueueRunning();
 
     if (runId) {

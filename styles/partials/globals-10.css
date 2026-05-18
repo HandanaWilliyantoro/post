@@ -1,8 +1,17 @@
 
 @media (max-width: 980px) {
-  .campaign-scheduler-form,
+  .campaign-scheduler-actions,
   .campaign-scheduler-row {
     grid-template-columns: 1fr;
+  }
+
+  .campaign-scheduler-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .campaign-scheduler-banner-pills {
+    justify-content: flex-start;
   }
 
   .detail-editor-body {

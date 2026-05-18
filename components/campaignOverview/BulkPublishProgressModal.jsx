@@ -23,9 +23,9 @@ export default function BulkPublishProgressModal({
     ? "This run is queued in the background. It will start automatically after earlier bulk publish work finishes."
     : retryPendingCount > 0
       ? "The job is auto-retrying failed posts in the background until every post is scheduled or you cancel the run."
-    : isStaggeredMode
-      ? "The job is scanning the folder, ignoring filenames, rotating videos across assigned campaign accounts in order, and creating PostOnce posts in the background."
-      : "The job is scanning the folder, matching filenames to assigned account usernames, and creating PostOnce posts in the background.";
+      : isStaggeredMode
+        ? "The job is scanning the folder, ignoring filenames, rotating videos across assigned campaign accounts in order, and creating PostOnce posts in the background."
+        : "The job is scanning the folder, matching filenames to assigned account usernames, and creating PostOnce posts in the background.";
   const fileCountLabel = isStaggeredMode ? "Assigned Files" : "Matched Files";
   const accountCountLabel = isStaggeredMode ? "Unused Accounts" : "Missing Accounts";
   const accountSamplesLabel = isStaggeredMode
@@ -47,10 +47,6 @@ export default function BulkPublishProgressModal({
         <ProgressBar percentage={progress.percentage || 0} />
 
         <div className="campaign-progress-stats">
-          <div className="dashboard-stat-card">
-            <p className="dashboard-stat-label">Mode</p>
-            <p className="dashboard-stat-value">{isStaggeredMode ? "Every 2 Hours" : "Same Time"}</p>
-          </div>
           <div className="dashboard-stat-card">
             <p className="dashboard-stat-label">Processed</p>
             <p className="dashboard-stat-value">{progress.processedCount || 0} / {progress.totalCount || 0}</p>

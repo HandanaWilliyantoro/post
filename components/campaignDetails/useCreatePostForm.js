@@ -82,7 +82,7 @@ export default function useCreatePostForm({ campaignSlug, router, setFormError, 
             video: null,
           },
         });
-        router.replace(router.asPath, undefined, { scroll: false });
+        router.reload();
       } catch (error) {
         setFormError(error.message || "Failed to submit post");
       } finally {

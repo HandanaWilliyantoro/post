@@ -48,9 +48,13 @@ function AccountRow({ account, onRemoveAccount, removingAccountId }) {
   );
 }
 
-function PostRow({ onDeletePost, post, removingPostId }) {
+function PostRow({ onDeletePost, onRetryPost, post, removingPostId, retryingPostId }) {
   const status = String(post?.status || "scheduled").trim() || "scheduled";
   const isRemoving = removingPostId === post.id;
+  const isRetrying = retryingPostId === post.id;
+  const canRetry =
+    String(status || "").trim().toLowerCase() === "failed" &&
+    post?.localOnly === true;
 
   return (
     <tr key={post.id}>
@@ -60,22 +64,39 @@ function PostRow({ onDeletePost, post, removingPostId }) {
       <td>{summarizeTargets(post?.targets)}</td>
       <td className="detail-mono">{post.id}</td>
       <td>
-        <button
-          type="button"
-          className="detail-icon-button"
-          onClick={() => onDeletePost?.(post)}
-          disabled={isRemoving}
-          aria-label={`Delete post ${post.id}`}
-          title="Delete post"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-            <path d="M3 6h18" />
-            <path d="M8 6V4h8v2" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-          </svg>
-        </button>
+        <div className="detail-action-group">
+          {canRetry ? (
+            <button
+              type="button"
+              className="detail-icon-button"
+              onClick={() => onRetryPost?.(post)}
+              disabled={isRemoving || isRetrying}
+              aria-label={`Retry failed post ${post.id}`}
+              title="Retry failed post"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                <path d="M20 11a8 8 0 1 0 2 5.3" />
+                <path d="M20 4v7h-7" />
+              </svg>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="detail-icon-button"
+            onClick={() => onDeletePost?.(post)}
+            disabled={isRemoving || isRetrying}
+            aria-label={`Delete post ${post.id}`}
+            title="Delete post"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+            </svg>
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -87,8 +108,10 @@ export default function DetailTable(props) {
     isAccountsView,
     onDeletePost,
     onRemoveAccount,
+    onRetryPost,
     removingAccountId,
     removingPostId,
+    retryingPostId,
   } = props;
   return (
     <section className="detail-table-card">
@@ -96,7 +119,7 @@ export default function DetailTable(props) {
         <thead>{isAccountsView ? <tr><th>Username</th><th>Platform</th><th>Status</th><th>ID</th><th>Action</th></tr> : <tr><th>Content</th><th>Publish at</th><th>Status</th><th>Account</th><th>ID</th><th>Action</th></tr>}</thead>
         <tbody>
           {!filteredRows.length ? <EmptyRow isAccountsView={isAccountsView} /> : null}
-          {isAccountsView ? filteredRows.map((account) => <AccountRow key={account.id} account={account} onRemoveAccount={onRemoveAccount} removingAccountId={removingAccountId} />) : filteredRows.map((post) => <PostRow key={post.id} post={post} onDeletePost={onDeletePost} removingPostId={removingPostId} />)}
+          {isAccountsView ? filteredRows.map((account) => <AccountRow key={account.id} account={account} onRemoveAccount={onRemoveAccount} removingAccountId={removingAccountId} />) : filteredRows.map((post) => <PostRow key={post.id} post={post} onDeletePost={onDeletePost} onRetryPost={onRetryPost} removingPostId={removingPostId} retryingPostId={retryingPostId} />)}
         </tbody>
       </table>
     </section>

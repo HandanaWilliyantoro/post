@@ -1,7 +1,15 @@
 import postonceClient from "@/lib/api/postonceClient";
 import { getPostById, updatePost } from "@/lib/post";
-import { mergePostDetails, removeLocalPost, replacePostWithNewVideo } from "@/lib/post/api/postDetails";
-import { isQueuedManualPost } from "@/lib/post/manualPostQueue";
+import {
+  mergePostDetails,
+  removeLocalPost,
+  replacePostWithNewVideo,
+} from "@/lib/post/api/postDetails";
+import {
+  cleanupManualPostSourceFile,
+  isQueuedManualPost,
+  retryFailedPost,
+} from "@/lib/post/manualPostQueue";
 import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
 import { parsePostPatchPayload } from "@/lib/post/api/requestParsers";
 
@@ -35,6 +43,34 @@ export default async function handler(req, res) {
     }
   }
 
+  if (req.method === "POST") {
+    try {
+      const queuedPost = await retryFailedPost(postId);
+
+      return res.status(202).json({
+        success: true,
+        data: queuedPost,
+        message: "Failed post queued for retry",
+      });
+    } catch (error) {
+      const message = errorMessage(error, "Failed to retry post");
+      const statusCode = message.includes("not found")
+        ? 404
+        : message.includes("already queued")
+          ? 409
+          : message.includes("Only failed") ||
+              message.includes("missing") ||
+              message.includes("source video")
+            ? 400
+            : 500;
+
+      return res.status(statusCode).json({
+        success: false,
+        error: message,
+      });
+    }
+  }
+
   if (req.method === "DELETE") {
     try {
       const existingPost = await getPostById(postId);
@@ -48,6 +84,7 @@ export default async function handler(req, res) {
       }
 
       if (existingPost?.localOnly === true) {
+        await cleanupManualPostSourceFile(existingPost);
         await removeLocalPost(postId);
         return res.status(200).json({ success: true, id: postId, localOnly: true });
       }

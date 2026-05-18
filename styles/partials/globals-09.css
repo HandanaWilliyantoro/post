@@ -80,6 +80,53 @@
   word-break: break-word;
 }
 
+.detail-file-dropzone {
+  display: flex;
+  min-height: 138px;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 18px;
+  border: 1px dashed rgba(24, 32, 38, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 240, 0.96));
+  padding: 1rem 1.05rem;
+  text-align: left;
+  color: rgba(24, 32, 38, 0.9);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.detail-file-dropzone:hover,
+.detail-file-dropzone:focus-visible,
+.detail-file-dropzone-dragging {
+  border-color: rgba(49, 174, 97, 0.52);
+  box-shadow: 0 0 0 4px rgba(49, 174, 97, 0.14);
+  background:
+    linear-gradient(180deg, rgba(247, 255, 250, 0.98), rgba(238, 250, 243, 0.96));
+  transform: translateY(-1px);
+}
+
+.detail-file-dropzone:focus-visible {
+  outline: none;
+}
+
+.detail-file-dropzone-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.detail-file-dropzone-meta {
+  color: rgba(94, 106, 114, 0.92);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .detail-editor-modal {
   width: min(1120px, 100%);
 }
@@ -182,7 +229,7 @@
     flex-direction: column;
   }
 
-  .campaign-scheduler-form,
+  .campaign-scheduler-actions,
   .campaign-progress-stats,
   .detail-form-grid {
     grid-template-columns: 1fr;
