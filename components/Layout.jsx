@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 import CampaignSidebar from "@/components/layout/CampaignSidebar";
 import CreateCampaignModal from "@/components/layout/CreateCampaignModal";
-import {
-  isIgnorableNavigationError,
-  isSameRoute,
-} from "@/lib/utils/navigation";
+import { pushRouteIfChanged } from "@/lib/utils/navigation";
 
 export default function Layout({ children, title = "Campaign Dashboard" }) {
   const router = useRouter();
@@ -78,15 +75,9 @@ export default function Layout({ children, title = "Campaign Dashboard" }) {
       helpers.resetForm();
       setShowCreateCampaignModal(false);
 
-      if (!isSameRoute(payload.data?.href, router.asPath, { includeSearch: false })) {
-        try {
-          await router.push(payload.data.href);
-        } catch (error) {
-          if (!isIgnorableNavigationError(error)) {
-            throw error;
-          }
-        }
-      }
+      await pushRouteIfChanged(router, payload.data?.href, {
+        includeSearch: false,
+      });
     } catch (error) {
       setCampaignError(error.message || "Failed to create campaign");
     } finally {

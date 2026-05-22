@@ -70,6 +70,7 @@ export default function App({ Component, pageProps }) {
         isIgnorableNavigationError(event?.error) ||
         isIgnorableNavigationError(event?.message)
       ) {
+        event.preventDefault?.();
         return;
       }
 
