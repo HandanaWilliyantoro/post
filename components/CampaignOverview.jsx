@@ -49,7 +49,7 @@ function resolveNextBulkPublishAtInput(values) {
   }
 
   try {
-    return addHoursToEasternDateTimeInput(publishAt, 4);
+    return addHoursToEasternDateTimeInput(publishAt, 2);
   } catch {
     return publishAt;
   }
@@ -365,12 +365,6 @@ export default function CampaignOverview({ actions, campaign }) {
         <div>
           <h1 className="campaign-top-title">{campaign.label}</h1>
           <p className="campaign-top-description">{campaign.description}</p>
-          <p className="campaign-detail-hint">
-            Type: {campaign.campaignType || "manual"}
-            {campaign.campaignType === "auto-scan" && campaign.campaignId
-              ? ` | Campaign ID: ${campaign.campaignId}`
-              : ""}
-          </p>
         </div>
         {actions ? <div className="campaign-top-actions">{actions}</div> : null}
       </header>

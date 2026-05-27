@@ -10,6 +10,7 @@ import {
   buildRetryJobsFromFailedPosts,
   resolveRetryableFailedJobs,
 } from "@/lib/pipeline/bulkPublish.pipeline";
+import { normalizeBoolean } from "@/lib/campaignNormalization";
 import { listFailedPosts } from "@/lib/post";
 import { buildPostDuplicateKey } from "@/lib/post/duplicateGuard";
 import {
@@ -30,6 +31,22 @@ function parseLimit(value, fallback = 6) {
   return Math.max(
     1,
     Math.min(100, Number.parseInt(String(value || fallback), 10) || fallback)
+  );
+}
+
+function hasUrlWatcherSelection(value) {
+  if (typeof value === "boolean") {
+    return true;
+  }
+
+  if (typeof value === "number") {
+    return value === 0 || value === 1;
+  }
+
+  const normalized = String(value ?? "").trim().toLowerCase();
+
+  return ["true", "false", "1", "0", "yes", "no", "on", "off"].includes(
+    normalized
   );
 }
 
@@ -208,6 +225,7 @@ export default async function handler(req, res) {
     const caption = String(req.body?.caption || "").trim();
     const publishAtInput = String(req.body?.publishAt || "").trim();
     const publishMode = "same-time";
+    const urlWatcherEnabledInput = req.body?.urlWatcherEnabled;
     const videoDir = String(req.body?.videoDir || "").trim();
 
     if (action === "retry-failed") {
@@ -275,6 +293,10 @@ export default async function handler(req, res) {
         caption: sourceProgress.caption,
         publishAt: sourceProgress.publishAt,
         publishMode: sourceProgress.publishMode,
+        urlWatcherEnabled: normalizeBoolean(
+          sourceProgress.urlWatcherEnabled,
+          false
+        ),
         videoDir: sourceProgress.videoDir,
         status: "queued",
         completed: false,
@@ -328,11 +350,15 @@ export default async function handler(req, res) {
         String(retryJobs[0]?.caption || "").trim() || "Retry failed posts";
       const firstRetryJobPublishAt =
         String(retryJobs[0]?.publishAt || "").trim() || new Date().toISOString();
+      const retryUrlWatcherEnabled = failedPosts.some((post) =>
+        normalizeBoolean(post?.urlWatcherEnabled, false)
+      );
       const progress = await createProgress({
         campaignSlug,
         caption: firstRetryJobCaption,
         publishAt: firstRetryJobPublishAt,
         publishMode: "same-time",
+        urlWatcherEnabled: retryUrlWatcherEnabled,
         videoDir: failedPosts
           .map((post) => String(post?.source_file_path || "").trim())
           .filter(Boolean)
@@ -387,11 +413,21 @@ export default async function handler(req, res) {
         .json({ success: false, error: "videoDir is required" });
     }
 
+    if (!hasUrlWatcherSelection(urlWatcherEnabledInput)) {
+      return res.status(400).json({
+        success: false,
+        error: "URL watcher setting is required",
+      });
+    }
+
+    const urlWatcherEnabled = normalizeBoolean(urlWatcherEnabledInput, false);
+
     const progress = await createProgress({
       campaignSlug,
       caption,
       publishAt: publishAtIso,
       publishMode,
+      urlWatcherEnabled,
       videoDir,
       status: "queued",
       completed: false,

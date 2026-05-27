@@ -6,14 +6,30 @@ import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
 import { formatAccountPlatformLabel } from "@/lib/accounts/platforms";
 import { showErrorSnackbar } from "@/lib/ui/snackbar";
 
+function getAccountAvatarUrl(account) {
+  return String(
+    account?.avatar_url || account?.avatarUrl || account?.profile_image_url || ""
+  ).trim();
+}
+
+function getAccountInitials(account) {
+  const username = String(account?.username || "").trim().replace(/^@+/, "");
+
+  if (!username) {
+    return "?";
+  }
+
+  return username.slice(0, 2).toUpperCase();
+}
+
 export default function AddAccountModal({
+  availableAccounts = [],
   formError,
   formSuccess,
   formik,
-  idleAccounts = [],
   onClose,
 }) {
-  const selectedAccount = idleAccounts.find(
+  const selectedAccount = availableAccounts.find(
     (account) => account.id === formik.values.accountId
   );
   const [searchText, setSearchText] = useState(selectedAccount?.username || "");
@@ -22,20 +38,20 @@ export default function AddAccountModal({
   useFormErrorSnackbar(formik);
 
   useEffect(() => {
-    if (!idleAccounts.length) {
+    if (!availableAccounts.length) {
       showErrorSnackbar(
-        "No idle accounts available. Open All Accounts to sync from PostOnce.",
+        "No accounts with an open campaign slot. Open All Accounts to sync from PostOnce.",
         {
           autoHideDuration: 6000,
         }
       );
     }
-  }, [idleAccounts.length]);
+  }, [availableAccounts.length]);
 
   const filteredAccounts = useMemo(() => {
     const needle = searchText.trim().toLowerCase();
 
-    return idleAccounts
+    return availableAccounts
       .filter((account) => {
         if (!needle) {
           return true;
@@ -52,7 +68,7 @@ export default function AddAccountModal({
         );
       })
       .slice(0, 40);
-  }, [idleAccounts, searchText]);
+  }, [availableAccounts, searchText]);
 
   function selectAccount(account) {
     formik.setFieldValue("accountId", account.id);
@@ -66,7 +82,7 @@ export default function AddAccountModal({
       <form className="detail-account-form" onSubmit={formik.handleSubmit}>
         <div className="detail-form-grid">
           <label className="detail-form-field detail-form-field-wide">
-            <span className="detail-form-label">Idle account</span>
+            <span className="detail-form-label">Available account</span>
             <div className="detail-combobox">
               <input
                 className="detail-form-input"
@@ -83,7 +99,7 @@ export default function AddAccountModal({
                     formik.setFieldTouched("accountId", true);
                   }, 120)
                 }
-                placeholder="Search idle account..."
+                placeholder="Search available account..."
                 autoComplete="off"
                 role="combobox"
                 aria-expanded={isOpen}
@@ -101,25 +117,47 @@ export default function AddAccountModal({
                   role="listbox"
                 >
                   {filteredAccounts.length ? (
-                    filteredAccounts.map((account) => (
-                      <button
-                        key={account.id}
-                        type="button"
-                        className="detail-combobox-option"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => selectAccount(account)}
-                        role="option"
-                        aria-selected={formik.values.accountId === account.id}
-                      >
-                        <span>{account.username}</span>
-                        <small>
-                          {`${formatAccountPlatformLabel(account?.platform)} - ${account.id}`}
-                        </small>
-                      </button>
-                    ))
+                    filteredAccounts.map((account) => {
+                      const avatarUrl = getAccountAvatarUrl(account);
+
+                      return (
+                        <button
+                          key={account.id}
+                          type="button"
+                          className="detail-combobox-option"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectAccount(account)}
+                          role="option"
+                          aria-selected={formik.values.accountId === account.id}
+                        >
+                          <span className="detail-combobox-avatar" aria-hidden="true">
+                            <span className="detail-combobox-avatar-fallback">
+                              {getAccountInitials(account)}
+                            </span>
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt=""
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : null}
+                          </span>
+                          <span className="detail-combobox-option-content">
+                            <span className="detail-combobox-option-title">
+                              {account.username}
+                            </span>
+                            <small>
+                              {`${formatAccountPlatformLabel(account?.platform)} - ${account.id}`}
+                            </small>
+                          </span>
+                        </button>
+                      );
+                    })
                   ) : (
                     <p className="detail-combobox-empty">
-                      No idle accounts match.
+                      No available accounts match.
                     </p>
                   )}
                 </div>
@@ -131,7 +169,7 @@ export default function AddAccountModal({
             <div className="detail-form-static">
               {selectedAccount
                 ? formatAccountPlatformLabel(selectedAccount.platform)
-                : "Select an idle account"}
+                : "Select an account"}
             </div>
           </label>
           <label className="detail-form-field">
@@ -144,9 +182,9 @@ export default function AddAccountModal({
             {formik.errors.accountId}
           </p>
         ) : null}
-        {!idleAccounts.length ? (
+        {!availableAccounts.length ? (
           <p className="detail-form-message detail-form-message-error">
-            No idle accounts available. Open All Accounts to sync from PostOnce.
+            No accounts with an open campaign slot. Open All Accounts to sync from PostOnce.
           </p>
         ) : null}
         {formError ? (
@@ -173,7 +211,7 @@ export default function AddAccountModal({
             type="submit"
             disabled={formik.isSubmitting}
           >
-            {formik.isSubmitting ? "Creating..." : "Create account"}
+            {formik.isSubmitting ? "Adding..." : "Add account"}
           </PrimaryButton>
         </div>
       </form>

@@ -58,7 +58,7 @@ function PostRow({ onDeletePost, onRetryPost, post, removingPostId, retryingPost
 
   return (
     <tr key={post.id}>
-      <td><div className="detail-post-main"><span className="detail-strong">{shorten(post.content)}</span><span className="detail-post-subtle">Media: {post?.media?.[0]?.type || "video"}</span><span className="detail-post-subtle">Origin: {post?.origin || "-"}</span><span className="detail-post-subtle">Campaign type: {post?.campaignType || "manual"}</span>{post?.campaignId ? <span className="detail-post-subtle">Campaign ID: {post.campaignId}</span> : null}</div></td>
+      <td><div className="detail-post-main"><span className="detail-strong">{shorten(post.content)}</span><span className="detail-post-subtle">Media: {post?.media?.[0]?.type || "video"}</span><span className="detail-post-subtle">Origin: {post?.origin || "-"}</span></div></td>
       <td>{formatDate(post.publish_at)}</td>
       <td><StatusPill value={status} /></td>
       <td>{summarizeTargets(post?.targets)}</td>

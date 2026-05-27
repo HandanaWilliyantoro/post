@@ -55,6 +55,38 @@
   transform: translateY(-1px);
 }
 
+.detail-form-field > legend.detail-form-label {
+  padding: 0;
+}
+
+.detail-radio-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.detail-radio-option {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(24, 32, 38, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.6rem 0.7rem;
+  color: rgba(24, 32, 38, 0.9);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.detail-radio-option input {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  accent-color: rgb(36, 154, 90);
+}
+
 
 .detail-form-textarea {
   min-height: 110px;

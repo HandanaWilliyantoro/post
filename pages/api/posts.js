@@ -137,8 +137,6 @@ export default async function handler(req, res) {
     const queuedPost = await queueManualPost({
       campaignSlug,
       campaignType: campaign?.campaignType,
-      campaignId: campaign?.campaignId,
-      campaignPassword: campaign?.campaignPassword,
       content,
       publish_at: publishAtIso,
       duplicateKey,

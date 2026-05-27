@@ -17,7 +17,15 @@ function buildAccountRows({ localAccounts, campaigns }) {
   );
 
   return localAccounts.map((account) => {
-    const campaignSlug = String(account?.campaignSlug || "").trim();
+    const campaignSlugs = [
+      ...(Array.isArray(account?.campaignSlugs) ? account.campaignSlugs : []),
+      account?.campaignSlug,
+    ]
+      .map((slug) => String(slug || "").trim())
+      .filter(Boolean);
+    const assignedCampaignLabels = [...new Set(campaignSlugs)].map(
+      (slug) => campaignLabels.get(slug) || slug
+    );
 
     return {
       ...account,
@@ -28,9 +36,9 @@ function buildAccountRows({ localAccounts, campaigns }) {
         String(account?.niche || "streaming").trim().toLowerCase() ||
         "streaming",
       accountStatus: account?.status || "-",
-      campaignSlug,
-      assignedCampaignLabel: campaignSlug
-        ? campaignLabels.get(campaignSlug) || campaignSlug
+      campaignSlugs: [...new Set(campaignSlugs)],
+      assignedCampaignLabel: assignedCampaignLabels.length
+        ? assignedCampaignLabels.join(", ")
         : "-",
     };
   });
@@ -186,7 +194,7 @@ export default function AccountsPage({
                 <th>Platform</th>
                 <th>Niche</th>
                 <th>Status</th>
-                <th>Assigned Campaign</th>
+                <th>Assigned Campaigns</th>
                 <th>ID</th>
               </tr>
             </thead>

@@ -1,7 +1,7 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-export default function useAccountForm({ campaignSlug, idleAccounts = [], router, setAccountRows, setFormError, setFormSuccess }) {
+export default function useAccountForm({ campaignSlug, availableAccounts = [], router, setAccountRows, setFormError, setFormSuccess }) {
   return useFormik({
     initialValues: { accountId: "", username: "", platform: "instagram", status: "active" },
     validationSchema: Yup.object({
@@ -13,14 +13,14 @@ export default function useAccountForm({ campaignSlug, idleAccounts = [], router
       setFormError("");
       setFormSuccess("");
       try {
-        const selectedAccount = idleAccounts.find((account) => String(account.id) === values.accountId);
+        const selectedAccount = availableAccounts.find((account) => String(account.id) === values.accountId);
         const response = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: values.accountId, username: selectedAccount?.username, platform: selectedAccount?.platform, campaignSlug }) });
         const payload = await response.json();
         if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create account");
         if (payload.data?.campaignSlug === campaignSlug) {
           setAccountRows((current) => [...current, payload.data].sort((left, right) => String(left?.username || "").localeCompare(String(right?.username || ""))));
         }
-        setFormSuccess("Account created.");
+        setFormSuccess("Account assigned.");
         helpers.resetForm();
         router.reload();
       } catch (error) {

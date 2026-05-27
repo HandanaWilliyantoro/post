@@ -12,7 +12,6 @@ export default function BulkPublishProgressModal({
   onClose,
 }) {
   if (!progress) return null;
-  const isStaggeredMode = progress.publishMode === "stagger-2h";
   const isCancelable = ["queued", "running"].includes(progress.status);
   const canRetryFailed =
     !isCancelable &&
@@ -23,14 +22,10 @@ export default function BulkPublishProgressModal({
     ? "This run is queued in the background. It will start automatically after earlier bulk publish work finishes."
     : retryPendingCount > 0
       ? "The job is auto-retrying failed posts in the background until every post is scheduled or you cancel the run."
-      : isStaggeredMode
-        ? "The job is scanning the folder, ignoring filenames, rotating videos across assigned campaign accounts in order, and creating PostOnce posts in the background."
-        : "The job is scanning the folder, matching filenames to assigned account usernames, and creating PostOnce posts in the background.";
-  const fileCountLabel = isStaggeredMode ? "Assigned Files" : "Matched Files";
-  const accountCountLabel = isStaggeredMode ? "Unused Accounts" : "Missing Accounts";
-  const accountSamplesLabel = isStaggeredMode
-    ? "Unused Account Samples"
-    : "Missing Account Samples";
+      : "The job is scanning the folder, pairing videos with assigned campaign accounts in folder order, and creating PostOnce posts in the background.";
+  const fileCountLabel = "Paired Files";
+  const accountCountLabel = "Account Issues";
+  const accountSamplesLabel = "Account Issue Samples";
 
   return (
     <ModalShell
@@ -91,10 +86,15 @@ export default function BulkPublishProgressModal({
 
         {progress.publishAt ? (
           <div className="campaign-progress-path">
-            <p className="dashboard-stat-label">{isStaggeredMode ? "First Publish At" : "Publish At"}</p>
+            <p className="dashboard-stat-label">Publish At</p>
             <p className="campaign-progress-path-value">{formatEasternDateTime(progress.publishAt)}</p>
           </div>
         ) : null}
+
+        <div className="campaign-progress-path">
+          <p className="dashboard-stat-label">URL Watcher</p>
+          <p className="campaign-progress-path-value">{progress.urlWatcherEnabled ? "Enabled" : "Disabled"}</p>
+        </div>
 
         {progress.nextRetryAt ? (
           <div className="campaign-progress-path">

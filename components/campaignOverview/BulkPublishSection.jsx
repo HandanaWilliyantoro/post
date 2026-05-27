@@ -49,6 +49,9 @@ const validationSchema = Yup.object({
       isFutureEasternDateTime
     ),
   videoDir: Yup.string().trim().required("Folder path is required"),
+  urlWatcherEnabled: Yup.mixed()
+    .oneOf([true, false], "URL watcher setting is required")
+    .required("URL watcher setting is required"),
 });
 
 export default function BulkPublishSection({
@@ -76,6 +79,7 @@ export default function BulkPublishSection({
       caption: "",
       publishAt: initialPublishAt,
       videoDir: "",
+      urlWatcherEnabled: "",
     },
     enableReinitialize: true,
     validationSchema,
@@ -117,12 +121,12 @@ export default function BulkPublishSection({
         <div className="campaign-scheduler-banner">
           <div className="campaign-scheduler-banner-copy">
             <p className="campaign-scheduler-banner-title">
-              One folder. One caption. Same-time queue.
+              One folder. One caption. One publish time.
             </p>
             <p className="campaign-scheduler-banner-text">
               {hasActiveRun
                 ? "A bulk publish run is already active, so this one will wait in line and start automatically."
-                : "All matched videos are queued for the selected publish time in one batch."}
+                : "The folder must contain one video for each assigned account. Videos are paired with accounts in folder order and queued for the selected publish time."}
             </p>
           </div>
 
@@ -132,7 +136,7 @@ export default function BulkPublishSection({
               {normalizedAssignedAccountCount === 1 ? "" : "s"}
             </span>
             <span className="campaign-scheduler-banner-pill">
-              Filename match required
+              1 video per account
             </span>
             <span className="campaign-scheduler-banner-pill">
               {hasActiveRun ? "Queued behind active run" : "Ready to queue"}
@@ -174,6 +178,32 @@ export default function BulkPublishSection({
             </label>
           </div>
 
+          <fieldset className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide">
+            <legend className="detail-form-label">URL watcher</legend>
+            <div className="detail-radio-group">
+              <label className="detail-radio-option">
+                <input
+                  name="urlWatcherEnabled"
+                  type="radio"
+                  checked={formik.values.urlWatcherEnabled === true}
+                  onChange={() => formik.setFieldValue("urlWatcherEnabled", true)}
+                  onBlur={formik.handleBlur}
+                />
+                <span>Enabled</span>
+              </label>
+              <label className="detail-radio-option">
+                <input
+                  name="urlWatcherEnabled"
+                  type="radio"
+                  checked={formik.values.urlWatcherEnabled === false}
+                  onChange={() => formik.setFieldValue("urlWatcherEnabled", false)}
+                  onBlur={formik.handleBlur}
+                />
+                <span>Disabled</span>
+              </label>
+            </div>
+          </fieldset>
+
           <label className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide">
             <span className="campaign-scheduler-panel-head">
               <span className="detail-form-label">Folder Path</span>
@@ -203,6 +233,11 @@ export default function BulkPublishSection({
           {formik.touched.videoDir && formik.errors.videoDir ? (
             <p className="detail-form-message detail-form-message-error campaign-scheduler-feedback">
               {formik.errors.videoDir}
+            </p>
+          ) : null}
+          {formik.touched.urlWatcherEnabled && formik.errors.urlWatcherEnabled ? (
+            <p className="detail-form-message detail-form-message-error campaign-scheduler-feedback">
+              {formik.errors.urlWatcherEnabled}
             </p>
           ) : null}
           {error ? (

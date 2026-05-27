@@ -5,11 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "dedupe-posts": "node scripts/dedupe-posts.cjs",
-    "dedupe-posts:apply": "node scripts/dedupe-posts.cjs --apply",
-    "dedupe-posts:source": "node scripts/dedupe-posts.cjs --mode=source",
-    "dedupe-posts:source:apply": "node scripts/dedupe-posts.cjs --mode=source --apply"
+    "start": "next start"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

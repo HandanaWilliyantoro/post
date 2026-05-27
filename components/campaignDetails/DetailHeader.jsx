@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import PrimaryButton from "@/components/PrimaryButton";
+import { preventSameRouteLinkNavigation } from "@/lib/utils/navigation";
 
 export default function DetailHeader({
   addButtonLabel,
@@ -14,7 +15,13 @@ export default function DetailHeader({
   return (
     <header className="detail-header">
       <div className="detail-header-left">
-        <Link href={campaign.href} className="detail-back-link">
+        <Link
+          href={campaign.href}
+          className="detail-back-link"
+          onClick={(event) =>
+            preventSameRouteLinkNavigation(event, campaign.href)
+          }
+        >
           <span aria-hidden="true">&larr;</span> Back to overview
         </Link>
         <div className="detail-title-row">

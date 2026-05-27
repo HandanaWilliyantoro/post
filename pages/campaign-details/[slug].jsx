@@ -18,7 +18,10 @@ import {
   toDateTimeInputValue,
 } from "@/components/campaignDetails/utils";
 import Layout from "@/components/Layout";
-import { getCampaignAccountsPage, listIdleAccounts } from "@/lib/accounts/campaignAccounts";
+import {
+  getCampaignAccountsPage,
+  listAssignableAccounts,
+} from "@/lib/accounts/campaignAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listPostsPage } from "@/lib/post/queries/listPosts";
 import { normalizePostStatusFilter } from "@/lib/post/statusFilters";
@@ -82,7 +85,8 @@ export async function getServerSideProps({ params, query }) {
   const queryText = String(query?.q || "").trim();
   const publishDate = normalizeEasternDateInput(query?.publishDate);
   const statusFilter = normalizePostStatusFilter(query?.status);
-  const idleAccounts = metric === "totalAccounts" ? await listIdleAccounts() : [];
+  const assignableAccounts =
+    metric === "totalAccounts" ? await listAssignableAccounts(campaign.slug) : [];
 
   if (metric === "totalAccounts") {
     const accountsPage = await getCampaignAccountsPage(campaign.slug, {
@@ -94,7 +98,7 @@ export async function getServerSideProps({ params, query }) {
     return {
       props: {
         campaign,
-        idleAccounts,
+        assignableAccounts,
         metric,
         page: accountsPage.page,
         pageSize: accountsPage.pageSize,
@@ -124,7 +128,7 @@ export async function getServerSideProps({ params, query }) {
   return {
     props: {
       campaign,
-      idleAccounts,
+      assignableAccounts,
       metric,
       page: postsPage.page,
       pageSize: postsPage.pageSize,
@@ -141,7 +145,7 @@ export async function getServerSideProps({ params, query }) {
 export default function CampaignDetailsPage({
   assignedAccountsCount = 0,
   campaign,
-  idleAccounts,
+  assignableAccounts,
   metric,
   page,
   pageSize,
@@ -251,7 +255,7 @@ export default function CampaignDetailsPage({
 
   const accountFormik = useAccountForm({
     campaignSlug: campaign.slug,
-    idleAccounts,
+    availableAccounts: assignableAccounts,
     router,
     setAccountRows: () => {},
     setFormError,
@@ -308,7 +312,7 @@ export default function CampaignDetailsPage({
       const response = await fetch("/api/accounts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId }),
+        body: JSON.stringify({ accountId, campaignSlug: campaign.slug }),
       });
       const payload = await response.json();
 
@@ -316,7 +320,7 @@ export default function CampaignDetailsPage({
         throw new Error(payload?.error || "Failed to remove account");
       }
 
-      showSuccessSnackbar("Account moved back to idle.");
+      showSuccessSnackbar("Account removed from this campaign.");
       router.reload();
     } catch (error) {
       showErrorSnackbar(error?.message || "Failed to remove account");
@@ -480,7 +484,7 @@ export default function CampaignDetailsPage({
 
       {showAddModal && isAccountsView ? (
         <AddAccountModal
-          idleAccounts={idleAccounts}
+          availableAccounts={assignableAccounts}
           formError={formError}
           formSuccess={formSuccess}
           formik={accountFormik}

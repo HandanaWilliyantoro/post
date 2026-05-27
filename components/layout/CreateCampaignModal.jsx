@@ -10,9 +10,6 @@ const INITIAL_VALUES = {
   description: "",
   icon: "spark",
   niche: "streaming",
-  campaignType: "manual",
-  campaignId: "",
-  campaignPassword: "",
 };
 
 const validationSchema = Yup.object({
@@ -20,20 +17,6 @@ const validationSchema = Yup.object({
   description: Yup.string().trim(),
   icon: Yup.string().required("Icon is required"),
   niche: Yup.string().trim().required("Niche is required"),
-  campaignType: Yup.string()
-    .oneOf(["auto-scan", "manual"])
-    .required("Campaign type is required"),
-  campaignId: Yup.string().trim().when("campaignType", {
-    is: "auto-scan",
-    then: (schema) => schema.required("campaignId is required for auto-scan"),
-    otherwise: (schema) => schema,
-  }),
-  campaignPassword: Yup.string().trim().when("campaignType", {
-    is: "auto-scan",
-    then: (schema) =>
-      schema.required("campaignPassword is required for auto-scan"),
-    otherwise: (schema) => schema,
-  }),
 });
 
 export default function CreateCampaignModal({
@@ -79,57 +62,6 @@ export default function CreateCampaignModal({
             <input className="detail-form-input" name="niche" value={formik.values.niche} onChange={formik.handleChange} onBlur={formik.handleBlur} placeholder="streaming" required />
           </label>
 
-          <label className="detail-form-field">
-            <span className="detail-form-label">Campaign type</span>
-            <select
-              className="detail-form-input"
-              name="campaignType"
-              value={formik.values.campaignType}
-              onChange={(event) => {
-                const nextType = event.target.value;
-                formik.setFieldValue("campaignType", nextType);
-                if (nextType === "manual") {
-                  formik.setFieldValue("campaignId", "");
-                  formik.setFieldValue("campaignPassword", "");
-                }
-              }}
-              onBlur={formik.handleBlur}
-            >
-              <option value="manual">Manual</option>
-              <option value="auto-scan">Auto-scan</option>
-            </select>
-          </label>
-
-          {formik.values.campaignType === "auto-scan" ? (
-            <>
-              <label className="detail-form-field">
-                <span className="detail-form-label">Campaign ID</span>
-                <input
-                  className="detail-form-input"
-                  name="campaignId"
-                  value={formik.values.campaignId}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="campaign-id"
-                  required
-                />
-              </label>
-
-              <label className="detail-form-field">
-                <span className="detail-form-label">Campaign password</span>
-                <input
-                  className="detail-form-input"
-                  name="campaignPassword"
-                  value={formik.values.campaignPassword}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="campaign-password"
-                  required
-                />
-              </label>
-            </>
-          ) : null}
-
           <label className="detail-form-field detail-form-field-wide">
             <span className="detail-form-label">Description</span>
             <textarea className="detail-form-input detail-form-textarea" name="description" rows={4} value={formik.values.description} onChange={formik.handleChange} onBlur={formik.handleBlur} placeholder="Describe what this campaign is for" />
@@ -138,8 +70,6 @@ export default function CreateCampaignModal({
 
         {formik.touched.label && formik.errors.label ? <p className="detail-form-message detail-form-message-error">{formik.errors.label}</p> : null}
         {formik.touched.niche && formik.errors.niche ? <p className="detail-form-message detail-form-message-error">{formik.errors.niche}</p> : null}
-        {formik.touched.campaignId && formik.errors.campaignId ? <p className="detail-form-message detail-form-message-error">{formik.errors.campaignId}</p> : null}
-        {formik.touched.campaignPassword && formik.errors.campaignPassword ? <p className="detail-form-message detail-form-message-error">{formik.errors.campaignPassword}</p> : null}
         {error ? <p className="detail-form-message detail-form-message-error">{error}</p> : null}
         {success ? <p className="detail-form-message detail-form-message-success">{success}</p> : null}
 

@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import { CampaignIcon, PlusIcon, SidebarToggleIcon } from "@/components/layout/SidebarIcons";
 import {
-  isSameRoute,
   normalizeRouteForComparison,
+  preventSameRouteLinkNavigation,
 } from "@/lib/utils/navigation";
 
 function isActiveRoute(currentPath, href) {
@@ -26,9 +26,10 @@ export default function CampaignSidebar({
   onCreate,
 }) {
   function preventSameRouteNavigation(event, href) {
-    if (isSameRoute(currentPath, href, { includeSearch: false })) {
-      event.preventDefault();
-    }
+    preventSameRouteLinkNavigation(event, href, {
+      currentPath,
+      includeSearch: false,
+    });
   }
 
   return (

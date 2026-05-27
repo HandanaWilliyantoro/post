@@ -36,7 +36,8 @@ export default async function handler(req, res) {
         message.includes("already exists") ||
         message.includes("required") ||
         message.includes("not found") ||
-        message.includes("already assigned")
+        message.includes("already assigned") ||
+        message.includes("another campaign")
           ? 400
           : 500;
 
@@ -54,7 +55,9 @@ export default async function handler(req, res) {
     } catch (error) {
       const message = error?.message || "Failed to remove account";
       const statusCode =
-        message.includes("required") || message.includes("not found")
+        message.includes("required") ||
+        message.includes("not found") ||
+        message.includes("not assigned")
           ? 400
           : 500;
 

@@ -59,7 +59,7 @@ export async function getServerSideProps({ params }) {
         },
         defaultBulkPublishAt: getDefaultBulkPublishDateTimeInput(
           latestPublishAt,
-          4
+          2
         ),
       },
     },
