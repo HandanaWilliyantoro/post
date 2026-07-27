@@ -10,10 +10,10 @@ export default function NotFoundPage() {
           The requested campaign or view is not available.
         </p>
         <Link
-          href="/accounts"
+          href="/"
           className="dashboard-button-inline mt-6 inline-flex items-center justify-center"
         >
-          Open accounts
+          Open dashboard
         </Link>
       </section>
     </main>

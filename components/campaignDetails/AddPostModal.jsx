@@ -80,7 +80,7 @@ export default function AddPostModal({ assignedAccountsCount, disableAddPost, fo
                 {selectedVideo ? "Selected video will be reused for the next queue action." : "Supports drag and drop."}
               </span>
             </button>
-            <span className="detail-post-subtle">The uploaded video will be sent directly through the PostOnce posting flow.</span>
+            <span className="detail-post-subtle">The uploaded video will be queued locally for the posting flow.</span>
           </label>
         </div>
         {formik.touched.content && formik.errors.content ? <p className="detail-form-message detail-form-message-error">{formik.errors.content}</p> : null}

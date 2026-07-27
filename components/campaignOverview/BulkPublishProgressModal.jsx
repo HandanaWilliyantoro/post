@@ -1,6 +1,7 @@
 import ModalShell from "@/components/campaignDetails/ModalShell";
 import PrimaryButton from "@/components/PrimaryButton";
 import ProgressBar from "@/components/ProgressBar";
+import { PUBLISH_MODE_WAVE_SCHEDULE } from "@/lib/pipeline/bulkPublishModes";
 import { formatEasternDateTime } from "@/lib/utils/easternTime";
 
 export default function BulkPublishProgressModal({
@@ -22,10 +23,14 @@ export default function BulkPublishProgressModal({
     ? "This run is queued in the background. It will start automatically after earlier bulk publish work finishes."
     : retryPendingCount > 0
       ? "The job is auto-retrying failed posts in the background until every post is scheduled or you cancel the run."
-      : "The job is scanning the folder, pairing videos with assigned campaign accounts in folder order, and creating PostOnce posts in the background.";
+      : "The job is scanning the folder, matching videos to assigned campaign accounts, and creating posts in the background.";
   const fileCountLabel = "Paired Files";
   const accountCountLabel = "Account Issues";
   const accountSamplesLabel = "Account Issue Samples";
+  const modeLabel =
+    progress.publishMode === PUBLISH_MODE_WAVE_SCHEDULE
+      ? "Wave Schedule"
+      : "Same Time";
 
   return (
     <ModalShell
@@ -73,6 +78,11 @@ export default function BulkPublishProgressModal({
         </div>
 
         <div className="campaign-progress-path">
+          <p className="dashboard-stat-label">Mode</p>
+          <p className="campaign-progress-path-value">{modeLabel}</p>
+        </div>
+
+        <div className="campaign-progress-path">
           <p className="dashboard-stat-label">Folder Path</p>
           <p className="campaign-progress-path-value">{progress.videoDir || "-"}</p>
         </div>
@@ -90,11 +100,6 @@ export default function BulkPublishProgressModal({
             <p className="campaign-progress-path-value">{formatEasternDateTime(progress.publishAt)}</p>
           </div>
         ) : null}
-
-        <div className="campaign-progress-path">
-          <p className="dashboard-stat-label">URL Watcher</p>
-          <p className="campaign-progress-path-value">{progress.urlWatcherEnabled ? "Enabled" : "Disabled"}</p>
-        </div>
 
         {progress.nextRetryAt ? (
           <div className="campaign-progress-path">

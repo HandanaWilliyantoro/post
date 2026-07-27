@@ -112,6 +112,17 @@
   word-break: break-word;
 }
 
+.detail-connect-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.detail-connect-select {
+  min-height: 43px;
+}
+
 .detail-file-dropzone {
   display: flex;
   min-height: 138px;
@@ -229,6 +240,160 @@
   text-transform: uppercase;
 }
 
+.bulk-generator-modal {
+  width: min(1180px, 100%);
+}
+
+.bulk-generator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bulk-generator-controls {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(150px, 0.62fr) minmax(160px, 0.62fr);
+  gap: 0.75rem;
+}
+
+.bulk-generator-dropzone {
+  min-height: 110px;
+}
+
+.bulk-generator-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bulk-generator-empty {
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 1.4rem;
+  color: rgba(94, 106, 114, 0.95);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.bulk-generator-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 0.9rem;
+  border: 1px solid rgba(24, 32, 38, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.bulk-generator-preview-shell {
+  aspect-ratio: 9 / 16;
+  min-height: 360px;
+  max-height: 520px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 32, 38, 0.1);
+  background: rgba(24, 32, 38, 0.9);
+}
+
+.bulk-generator-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.bulk-generator-preview-source {
+  object-fit: cover;
+}
+
+.bulk-generator-preview-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.bulk-generator-card-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.bulk-generator-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bulk-generator-file-name {
+  margin: 0 0 0.22rem;
+  color: rgba(24, 32, 38, 0.96);
+  font-size: 0.95rem;
+  font-weight: 750;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.bulk-generator-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bulk-generator-title-input {
+  min-height: 128px;
+}
+
+.bulk-generator-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.bulk-generator-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(153, 27, 27, 0.94);
+  padding: 0.28rem 0.58rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bulk-generator-count-valid {
+  background: rgba(36, 154, 90, 0.11);
+  color: rgba(21, 128, 61, 0.95);
+}
+
+.bulk-generator-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.bulk-generator-card-actions .dashboard-button-inline {
+  min-width: 160px;
+}
+
+.bulk-generator-footer {
+  flex-wrap: wrap;
+}
+
 .detail-form-message {
   margin: 0;
   border-radius: 16px;
@@ -263,8 +428,31 @@
 
   .campaign-scheduler-actions,
   .campaign-progress-stats,
+  .bulk-generator-controls,
   .detail-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bulk-generator-card {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-generator-preview-shell {
+    min-height: 420px;
+    max-height: none;
+  }
+
+  .bulk-generator-card-actions .dashboard-button-inline {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .detail-connect-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-connect-controls .dashboard-button-inline {
+    width: 100%;
   }
 
   .detail-modal-overlay {

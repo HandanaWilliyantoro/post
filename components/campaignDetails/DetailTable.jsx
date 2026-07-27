@@ -7,10 +7,10 @@ import {
 } from "@/components/campaignDetails/utils";
 
 function EmptyRow({ isAccountsView }) {
-  const colSpan = isAccountsView ? 5 : 6;
+  const colSpan = 5;
   return (
     <tr>
-      <td colSpan={colSpan} className="detail-empty">
+      <td colSpan={colSpan} className="detail-empty" data-label="">
         Nothing matches your filters yet.
       </td>
     </tr>
@@ -22,11 +22,11 @@ function AccountRow({ account, onRemoveAccount, removingAccountId }) {
 
   return (
     <tr key={account.id}>
-      <td className="detail-strong">{account.username || "-"}</td>
-      <td>{account.platform ? formatAccountPlatformLabel(account.platform) : "-"}</td>
-      <td><StatusPill value={account.status} /></td>
-      <td className="detail-mono">{account.id}</td>
-      <td>
+      <td className="detail-strong" data-label="Username">{account.username || "-"}</td>
+      <td data-label="Platform">{account.platform ? formatAccountPlatformLabel(account.platform) : "-"}</td>
+      <td data-label="Status"><StatusPill value={account.status} /></td>
+      <td className="detail-mono" data-label="ID">{account.id}</td>
+      <td data-label="Action">
         <button
           type="button"
           className="detail-icon-button"
@@ -58,12 +58,11 @@ function PostRow({ onDeletePost, onRetryPost, post, removingPostId, retryingPost
 
   return (
     <tr key={post.id}>
-      <td><div className="detail-post-main"><span className="detail-strong">{shorten(post.content)}</span><span className="detail-post-subtle">Media: {post?.media?.[0]?.type || "video"}</span><span className="detail-post-subtle">Origin: {post?.origin || "-"}</span></div></td>
-      <td>{formatDate(post.publish_at)}</td>
-      <td><StatusPill value={status} /></td>
-      <td>{summarizeTargets(post?.targets)}</td>
-      <td className="detail-mono">{post.id}</td>
-      <td>
+      <td data-label="Content"><div className="detail-post-main"><span className="detail-strong">{shorten(post.content)}</span><span className="detail-post-subtle">Media: {post?.media?.[0]?.type || "video"}</span><span className="detail-post-subtle">Origin: {post?.origin || "-"}</span></div></td>
+      <td data-label="Publish at">{formatDate(post.publish_at)}</td>
+      <td data-label="Account">{summarizeTargets(post?.targets)}</td>
+      <td className="detail-mono" data-label="ID">{post.id}</td>
+      <td data-label="Action">
         <div className="detail-action-group">
           {canRetry ? (
             <button
@@ -116,7 +115,7 @@ export default function DetailTable(props) {
   return (
     <section className="detail-table-card">
       <table className="detail-table">
-        <thead>{isAccountsView ? <tr><th>Username</th><th>Platform</th><th>Status</th><th>ID</th><th>Action</th></tr> : <tr><th>Content</th><th>Publish at</th><th>Status</th><th>Account</th><th>ID</th><th>Action</th></tr>}</thead>
+        <thead>{isAccountsView ? <tr><th>Username</th><th>Platform</th><th>Status</th><th>ID</th><th>Action</th></tr> : <tr><th>Content</th><th>Publish at</th><th>Account</th><th>ID</th><th>Action</th></tr>}</thead>
         <tbody>
           {!filteredRows.length ? <EmptyRow isAccountsView={isAccountsView} /> : null}
           {isAccountsView ? filteredRows.map((account) => <AccountRow key={account.id} account={account} onRemoveAccount={onRemoveAccount} removingAccountId={removingAccountId} />) : filteredRows.map((post) => <PostRow key={post.id} post={post} onDeletePost={onDeletePost} onRetryPost={onRetryPost} removingPostId={removingPostId} retryingPostId={retryingPostId} />)}

@@ -118,6 +118,18 @@
   color: rgba(45, 120, 74, 0.95);
 }
 
+.detail-pill-enabled {
+  background: rgba(90, 176, 126, 0.14);
+  border-color: rgba(90, 176, 126, 0.22);
+  color: rgba(45, 120, 74, 0.95);
+}
+
+.detail-pill-disabled {
+  background: rgba(24, 32, 38, 0.06);
+  border-color: rgba(24, 32, 38, 0.12);
+  color: rgba(24, 32, 38, 0.72);
+}
+
 .detail-pill-pending,
 .detail-pill-ready {
   background: rgba(234, 124, 77, 0.12);
@@ -201,6 +213,31 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.detail-table-action-button {
+  border: 1px solid rgba(24, 32, 38, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: rgba(24, 32, 38, 0.85);
+  padding: 0.42rem 0.72rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.detail-table-action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(16, 33, 43, 0.12);
+}
+
+.detail-table-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .detail-icon-button:hover {

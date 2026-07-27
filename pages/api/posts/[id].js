@@ -1,4 +1,3 @@
-import postonceClient from "@/lib/api/postonceClient";
 import { getPostById, updatePost } from "@/lib/post";
 import {
   mergePostDetails,
@@ -12,6 +11,7 @@ import {
 } from "@/lib/post/manualPostQueue";
 import { startPostPublishCallbackWatcher } from "@/lib/post/publishCallbackWatcher";
 import { parsePostPatchPayload } from "@/lib/post/api/requestParsers";
+import { deleteSocialPost } from "@/lib/postforme/posts";
 
 export const config = {
   api: { bodyParser: false },
@@ -30,14 +30,7 @@ export default async function handler(req, res) {
     try {
       const localPost = await getPostById(postId);
       if (!localPost) return res.status(404).json({ success: false, error: "Post not found" });
-      if (localPost.localOnly === true) {
-        return res.status(200).json({ success: true, data: localPost });
-      }
-      try {
-        return res.status(200).json({ success: true, data: mergePostDetails(localPost, await postonceClient.get(`/posts/${postId}`)) });
-      } catch {
-        return res.status(200).json({ success: true, data: localPost });
-      }
+      return res.status(200).json({ success: true, data: localPost });
     } catch (error) {
       return res.status(500).json({ success: false, error: error.message });
     }
@@ -89,7 +82,17 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, id: postId, localOnly: true });
       }
 
-      await postonceClient.delete(`/posts/${postId}`);
+      if (existingPost) {
+        try {
+          await deleteSocialPost(postId);
+        } catch (error) {
+          const status = Number(error?.response?.status || 0);
+          if (status !== 404) {
+            throw error;
+          }
+        }
+      }
+
       await removeLocalPost(postId);
       return res.status(200).json({ success: true, id: postId });
     } catch (error) {
@@ -101,7 +104,10 @@ export default async function handler(req, res) {
     try {
       const existingPost = await getPostById(postId);
       if (!existingPost) return res.status(404).json({ success: false, error: "Post not found" });
-      if (existingPost.localOnly === true) {
+      if (
+        existingPost.localOnly === true &&
+        String(existingPost?.status || "").trim().toLowerCase() === "failed"
+      ) {
         return res.status(409).json({
           success: false,
           error: "Failed placeholder posts cannot be edited. Retry or delete the failed post instead.",
@@ -122,7 +128,7 @@ export default async function handler(req, res) {
 
       const post = await updatePost(postId, payload);
       if (!post) return res.status(404).json({ success: false, error: "Post not found" });
-      return res.status(200).json({ success: true, data: mergePostDetails(post, await postonceClient.get(`/posts/${postId}`)) });
+      return res.status(200).json({ success: true, data: mergePostDetails(post) });
     } catch (error) {
       return res.status(500).json({ success: false, error: errorMessage(error, "Failed to update post") });
     }

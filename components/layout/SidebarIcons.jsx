@@ -20,8 +20,6 @@ export function CampaignIcon({ type }) {
       return <svg {...commonProps}><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H9l-3.5 3V11A2.5 2.5 0 0 1 4 8.5z" /><path d="M14 10h3.5A2.5 2.5 0 0 1 20 12.5v5l-3-2.5H14a2 2 0 0 1-2-2" /></svg>;
     case "news":
       return <svg {...commonProps}><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M8 9h8" /><path d="M8 13h5" /><path d="M15.5 12.5h.5" /><path d="M15.5 15.5h.5" /></svg>;
-    case "accounts":
-      return <svg {...commonProps}><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
     default:
       return <svg {...commonProps}><circle cx="12" cy="12" r="8" /></svg>;
   }

@@ -1,11 +1,20 @@
 import CampaignOverview from "@/components/CampaignOverview";
+import CleanupCampaignButton from "@/components/campaign/CleanupCampaignButton";
 import DeleteCampaignButton from "@/components/campaign/DeleteCampaignButton";
+import RenameCampaignButton from "@/components/campaign/RenameCampaignButton";
 import Layout from "@/components/Layout";
 import { getAccounts } from "@/lib/accounts/getAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listAllPosts } from "@/lib/post";
-import { getLatestCampaignPublishAt } from "@/lib/post/queries/listPosts";
-import { getDefaultBulkPublishDateTimeInput } from "@/lib/utils/easternTime";
+import {
+  buildNextPublishDates,
+  getCampaignPostIntervalHours,
+} from "@/lib/post/schedule";
+import { isoToEasternDateTimeInput } from "@/lib/utils/easternTime";
+
+function resolveRouteSlug(context = {}) {
+  return String(context?.params?.slug || context?.query?.slug || "").trim();
+}
 
 function buildCountTrend(count, points) {
   if (count <= 0) {
@@ -17,8 +26,8 @@ function buildCountTrend(count, points) {
   });
 }
 
-export async function getServerSideProps({ params }) {
-  const campaign = await findCampaignBySlug(params?.slug);
+export async function getServerSideProps(context) {
+  const campaign = await findCampaignBySlug(resolveRouteSlug(context));
 
   if (!campaign) {
     return {
@@ -26,13 +35,17 @@ export async function getServerSideProps({ params }) {
     };
   }
 
-  const [accounts, posts, latestPublishAt] = await Promise.all([
+  const [accounts, posts] = await Promise.all([
     getAccounts({ campaignSlug: campaign.slug }),
     listAllPosts({ campaignSlug: campaign.slug }),
-    getLatestCampaignPublishAt(campaign.slug),
   ]);
   const totalAccounts = accounts.length;
   const livePosts = posts.filter((post) => post?.localOnly !== true);
+  const nextBulkPublishAt = buildNextPublishDates({
+    campaignSlug: campaign.slug,
+    existingPosts: livePosts,
+    count: 1,
+  })[0];
 
   return {
     props: {
@@ -57,10 +70,7 @@ export async function getServerSideProps({ params }) {
             ),
           },
         },
-        defaultBulkPublishAt: getDefaultBulkPublishDateTimeInput(
-          latestPublishAt,
-          2
-        ),
+        defaultBulkPublishAt: isoToEasternDateTimeInput(nextBulkPublishAt),
       },
     },
   };
@@ -69,7 +79,16 @@ export async function getServerSideProps({ params }) {
 export default function CampaignPage({ campaign }) {
   return (
     <Layout title={campaign.label}>
-      <CampaignOverview campaign={campaign} actions={<DeleteCampaignButton campaign={campaign} />} />
+      <CampaignOverview
+        campaign={campaign}
+        actions={
+          <>
+            <RenameCampaignButton campaign={campaign} />
+            <CleanupCampaignButton campaign={campaign} />
+            <DeleteCampaignButton campaign={campaign} />
+          </>
+        }
+      />
     </Layout>
   );
 }

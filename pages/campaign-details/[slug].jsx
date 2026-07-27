@@ -3,13 +3,18 @@ import { useRouter } from "next/router";
 
 import AddAccountModal from "@/components/campaignDetails/AddAccountModal";
 import AddPostModal from "@/components/campaignDetails/AddPostModal";
+import BulkImagePostGeneratorModal from "@/components/campaignDetails/BulkImagePostGeneratorModal";
+import CleanupCampaignButton from "@/components/campaign/CleanupCampaignButton";
 import DeleteCampaignButton from "@/components/campaign/DeleteCampaignButton";
+import RenameCampaignButton from "@/components/campaign/RenameCampaignButton";
 import DetailControls from "@/components/campaignDetails/DetailControls";
 import DetailHeader from "@/components/campaignDetails/DetailHeader";
 import DetailTable from "@/components/campaignDetails/DetailTable";
+import ExportPublishedUrlsButton from "@/components/campaignDetails/ExportPublishedUrlsButton";
 import PaginationControls, {
   DEFAULT_PAGE_SIZE,
 } from "@/components/PaginationControls";
+import PrimaryButton from "@/components/PrimaryButton";
 import useAccountForm from "@/components/campaignDetails/useAccountForm";
 import useCreatePostForm from "@/components/campaignDetails/useCreatePostForm";
 import useFeedbackEffects from "@/components/campaignDetails/useFeedbackEffects";
@@ -18,6 +23,7 @@ import {
   toDateTimeInputValue,
 } from "@/components/campaignDetails/utils";
 import Layout from "@/components/Layout";
+import { syncAccountsFromProvider } from "@/lib/accounts/accountSync";
 import {
   getCampaignAccountsPage,
   listAssignableAccounts,
@@ -31,10 +37,15 @@ import {
   getEasternDateTimeInputAfterMinutes,
   normalizeEasternDateInput,
 } from "@/lib/utils/easternTime";
+import { replaceRouteIfChanged } from "@/lib/utils/navigation";
 
 function sanitizePage(value) {
   const parsed = Number(value || 1);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
+function resolveRouteSlug(context = {}) {
+  return String(context?.params?.slug || context?.query?.slug || "").trim();
 }
 
 function getRetryMediaUrl(post) {
@@ -76,8 +87,20 @@ function buildRetryDraftValues(post) {
   };
 }
 
-export async function getServerSideProps({ params, query }) {
-  const campaign = await findCampaignBySlug(params?.slug);
+async function refreshProviderAccounts() {
+  try {
+    await syncAccountsFromProvider();
+  } catch (error) {
+    console.error(
+      "[campaign-details] Failed to refresh PostForMe accounts:",
+      error?.message || error
+    );
+  }
+}
+
+export async function getServerSideProps(context) {
+  const query = context?.query || {};
+  const campaign = await findCampaignBySlug(resolveRouteSlug(context));
   if (!campaign) return { notFound: true };
 
   const metric = normalizeMetric(query?.metric);
@@ -85,10 +108,12 @@ export async function getServerSideProps({ params, query }) {
   const queryText = String(query?.q || "").trim();
   const publishDate = normalizeEasternDateInput(query?.publishDate);
   const statusFilter = normalizePostStatusFilter(query?.status);
-  const assignableAccounts =
-    metric === "totalAccounts" ? await listAssignableAccounts(campaign.slug) : [];
+  let assignableAccounts = [];
 
   if (metric === "totalAccounts") {
+    await refreshProviderAccounts();
+    assignableAccounts = await listAssignableAccounts(campaign.slug);
+
     const accountsPage = await getCampaignAccountsPage(campaign.slug, {
       page,
       pageSize: DEFAULT_PAGE_SIZE,
@@ -160,6 +185,7 @@ export default function CampaignDetailsPage({
   const [postStatusFilter, setPostStatusFilter] = useState(statusFilter);
   const [searchText, setSearchText] = useState(queryText);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkGeneratorModal, setShowBulkGeneratorModal] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [removingAccountId, setRemovingAccountId] = useState("");
@@ -167,6 +193,7 @@ export default function CampaignDetailsPage({
   const [retryingPostId, setRetryingPostId] = useState("");
   const isAccountsView = metric === "totalAccounts";
   const disableAddPost = !isAccountsView && assignedAccountsCount === 0;
+  const shouldOfferAccountSetup = !isAccountsView && disableAddPost;
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const startItem = totalItems ? (page - 1) * pageSize + 1 : 0;
   const endItem = totalItems ? Math.min(page * pageSize, totalItems) : 0;
@@ -215,14 +242,17 @@ export default function CampaignDetailsPage({
   }
 
   function navigate(nextQuery = {}) {
-    return router.replace(
-      {
-        pathname: router.pathname,
-        query: buildQuery(nextQuery),
-      },
-      undefined,
-      { scroll: false }
-    );
+    const query = buildQuery(nextQuery);
+    const nextAs = {
+      pathname: router.pathname,
+      query,
+    };
+
+    return replaceRouteIfChanged(router, nextAs, {
+      includeSearch: true,
+      as: undefined,
+      routerOptions: { scroll: false },
+    });
   }
 
   useEffect(() => {
@@ -270,6 +300,28 @@ export default function CampaignDetailsPage({
     setPostRows: () => {},
   });
 
+  useEffect(() => {
+    if (!isAccountsView || router.query?.addAccount !== "1" || showAddModal) {
+      return;
+    }
+
+    setFormError("");
+    setFormSuccess("");
+    accountFormik.resetForm();
+    setShowAddModal(true);
+
+    void replaceRouteIfChanged(
+      router,
+      {
+        pathname: router.pathname,
+        query: { slug: campaign.slug, metric: "totalAccounts" },
+      },
+      {
+        routerOptions: { scroll: false, shallow: true },
+      }
+    );
+  }, [accountFormik, campaign.slug, isAccountsView, router, showAddModal]);
+
   function reopenFailedPostAsDraft(post) {
     const draft = buildRetryDraftValues(post);
 
@@ -285,6 +337,10 @@ export default function CampaignDetailsPage({
     setFormSuccess("");
     accountFormik.resetForm();
     postFormik.resetForm();
+  }
+
+  function closeBulkGeneratorModal() {
+    setShowBulkGeneratorModal(false);
   }
 
   async function handleRemoveAccount(account) {
@@ -337,9 +393,7 @@ export default function CampaignDetailsPage({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete post "${postId}" from PostOnce and local posts?`
-    );
+    const confirmed = window.confirm(`Delete post "${postId}"?`);
 
     if (!confirmed) {
       return;
@@ -418,6 +472,18 @@ export default function CampaignDetailsPage({
     setFormError("");
     setFormSuccess("");
 
+    if (shouldOfferAccountSetup) {
+      router.push({
+        pathname: "/campaign-details/[slug]",
+        query: {
+          slug: campaign.slug,
+          metric: "totalAccounts",
+          addAccount: "1",
+        },
+      });
+      return;
+    }
+
     if (isAccountsView) {
       accountFormik.resetForm();
     } else {
@@ -440,10 +506,31 @@ export default function CampaignDetailsPage({
     <Layout title={campaign.label}>
       <div className="detail-shell">
         <DetailHeader
-          addButtonLabel={isAccountsView ? "Add account" : "Add post"}
+          addButtonLabel={
+            isAccountsView || shouldOfferAccountSetup ? "Add account" : "Add post"
+          }
           campaign={campaign}
-          disableAddPost={disableAddPost}
-          extraActions={<DeleteCampaignButton campaign={campaign} />}
+          disableAddPost={!shouldOfferAccountSetup && disableAddPost}
+          extraActions={
+            <>
+              {!isAccountsView ? (
+                <PrimaryButton
+                  className="dashboard-button-inline"
+                  variant="ghost"
+                  onClick={() => setShowBulkGeneratorModal(true)}
+                  disabled={disableAddPost}
+                >
+                  Bulk image posts
+                </PrimaryButton>
+              ) : null}
+              {!isAccountsView ? (
+                <ExportPublishedUrlsButton campaignSlug={campaign.slug} />
+              ) : null}
+              <RenameCampaignButton campaign={campaign} />
+              <CleanupCampaignButton campaign={campaign} />
+              <DeleteCampaignButton campaign={campaign} />
+            </>
+          }
           isAccountsView={isAccountsView}
           title={isAccountsView ? `${campaign.label} accounts` : `${campaign.label} posts`}
           onOpenAddModal={openAddModal}
@@ -485,6 +572,7 @@ export default function CampaignDetailsPage({
       {showAddModal && isAccountsView ? (
         <AddAccountModal
           availableAccounts={assignableAccounts}
+          campaignSlug={campaign.slug}
           formError={formError}
           formSuccess={formSuccess}
           formik={accountFormik}
@@ -499,6 +587,15 @@ export default function CampaignDetailsPage({
           formSuccess={formSuccess}
           formik={postFormik}
           onClose={closeAddModal}
+        />
+      ) : null}
+      {showBulkGeneratorModal && !isAccountsView ? (
+        <BulkImagePostGeneratorModal
+          assignedAccountsCount={assignedAccountsCount}
+          campaign={campaign}
+          disableAddPost={disableAddPost}
+          onClose={closeBulkGeneratorModal}
+          onQueued={() => router.reload()}
         />
       ) : null}
     </Layout>

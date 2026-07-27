@@ -113,6 +113,43 @@
   width: 100%;
 }
 
+.campaign-scheduler-mode-options {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.campaign-scheduler-mode-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 33, 43, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.85rem 0.95rem;
+  cursor: pointer;
+}
+
+.campaign-scheduler-mode-option input {
+  margin-top: 0.2rem;
+}
+
+.campaign-scheduler-mode-option span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.campaign-scheduler-mode-option strong {
+  font-size: 0.92rem;
+  color: rgba(24, 32, 38, 0.96);
+}
+
+.campaign-scheduler-mode-hint {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(94, 106, 114, 0.96);
+}
+
 .campaign-scheduler-panel-head {
   display: flex;
   align-items: center;
@@ -270,6 +307,8 @@
 .detail-header-right {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.4rem;
 }
 

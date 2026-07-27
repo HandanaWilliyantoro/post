@@ -5,8 +5,14 @@ import * as Yup from "yup";
 import PrimaryButton from "@/components/PrimaryButton";
 import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
 import {
+  PUBLISH_MODE_SAME_TIME,
+  PUBLISH_MODE_WAVE_SCHEDULE,
+} from "@/lib/pipeline/bulkPublishModes";
+import {
   easternDateTimeInputToIso,
   getCurrentEasternDateTimeInput,
+  getDefaultBulkPublishDateTimeInput,
+  normalizeBulkPublishDateTimeInput,
 } from "@/lib/utils/easternTime";
 
 function isFutureEasternDateTime(value) {
@@ -29,14 +35,24 @@ function isFutureEasternDateTime(value) {
   }
 }
 
-function resolveInitialPublishAt(defaultPublishAt = "") {
+function resolveInitialPublishAt(defaultPublishAt = "", hourOffset = 24) {
   const normalizedDefault = String(defaultPublishAt || "").trim();
 
-  if (isFutureEasternDateTime(normalizedDefault)) {
-    return normalizedDefault;
+  if (normalizedDefault) {
+    try {
+      const normalizedPublishAt = normalizeBulkPublishDateTimeInput(
+        normalizedDefault
+      );
+
+      if (isFutureEasternDateTime(normalizedPublishAt)) {
+        return normalizedPublishAt;
+      }
+    } catch {
+      // Fall through to an automatic campaign interval default.
+    }
   }
 
-  return getCurrentEasternDateTimeInput();
+  return getDefaultBulkPublishDateTimeInput(null, hourOffset);
 }
 
 const validationSchema = Yup.object({
@@ -49,13 +65,14 @@ const validationSchema = Yup.object({
       isFutureEasternDateTime
     ),
   videoDir: Yup.string().trim().required("Folder path is required"),
-  urlWatcherEnabled: Yup.mixed()
-    .oneOf([true, false], "URL watcher setting is required")
-    .required("URL watcher setting is required"),
+  publishMode: Yup.string()
+    .oneOf([PUBLISH_MODE_SAME_TIME, PUBLISH_MODE_WAVE_SCHEDULE])
+    .required(),
 });
 
 export default function BulkPublishSection({
   assignedAccountCount = 0,
+  campaignIntervalHours = 24,
   defaultPublishAt = "",
   error,
   success,
@@ -71,20 +88,19 @@ export default function BulkPublishSection({
 }) {
   const minimumPublishAt = useMemo(() => getCurrentEasternDateTimeInput(), []);
   const initialPublishAt = useMemo(
-    () => resolveInitialPublishAt(defaultPublishAt),
-    [defaultPublishAt]
+    () => resolveInitialPublishAt(defaultPublishAt, campaignIntervalHours),
+    [campaignIntervalHours, defaultPublishAt]
   );
   const formik = useFormik({
     initialValues: {
       caption: "",
       publishAt: initialPublishAt,
       videoDir: "",
-      urlWatcherEnabled: "",
+      publishMode: PUBLISH_MODE_WAVE_SCHEDULE,
     },
     enableReinitialize: true,
     validationSchema,
-    onSubmit: (values, helpers) =>
-      onSubmit?.({ ...values, publishMode: "same-time" }, helpers),
+    onSubmit: (values, helpers) => onSubmit?.(values, helpers),
   });
 
   useFormErrorSnackbar(formik);
@@ -93,11 +109,23 @@ export default function BulkPublishSection({
     0,
     Number(assignedAccountCount) || 0
   );
+  const isWaveSchedule =
+    formik.values.publishMode === PUBLISH_MODE_WAVE_SCHEDULE;
   const submitLabel = formik.isSubmitting
     ? "Queueing..."
     : hasActiveRun
-      ? "Queue another bulk publish"
-      : "Start bulk publish";
+      ? isWaveSchedule
+        ? "Queue another Wave Schedule"
+        : "Queue another bulk publish"
+      : isWaveSchedule
+        ? "Start Wave Schedule"
+        : "Start bulk publish";
+  const intervalCopy = `${campaignIntervalHours} hour${
+    campaignIntervalHours === 1 ? "" : "s"
+  }`;
+  const pairingCopy = isWaveSchedule
+    ? `Wave Schedule: sort videos in the folder (vid1, vid2, …). Wave 1 assigns vid1→account1 … vidN→accountN at the Publish At time. Wave 2 assigns the next N videos to the same accounts at the next ${intervalCopy} slot (7am → 3pm → 11pm ET). Supports 1000+ videos.`
+    : `Same Time: the folder must contain exactly one video per assigned account. SWA videos must be named with the target account username. Every post uses the selected publish time.`;
 
   return (
     <section className="dashboard-card campaign-scheduler-card">
@@ -121,12 +149,14 @@ export default function BulkPublishSection({
         <div className="campaign-scheduler-banner">
           <div className="campaign-scheduler-banner-copy">
             <p className="campaign-scheduler-banner-title">
-              One folder. One caption. One publish time.
+              {isWaveSchedule
+                ? "Wave Schedule — many videos, timed waves"
+                : "Same Time — one video per account"}
             </p>
             <p className="campaign-scheduler-banner-text">
               {hasActiveRun
-                ? "A bulk publish run is already active, so this one will wait in line and start automatically."
-                : "The folder must contain one video for each assigned account. Videos are paired with accounts in folder order and queued for the selected publish time."}
+                ? `A bulk publish run is already active, so this one will wait in line and start automatically. ${pairingCopy}`
+                : pairingCopy}
             </p>
           </div>
 
@@ -136,7 +166,7 @@ export default function BulkPublishSection({
               {normalizedAssignedAccountCount === 1 ? "" : "s"}
             </span>
             <span className="campaign-scheduler-banner-pill">
-              1 video per account
+              {isWaveSchedule ? "N videos per wave" : "1 video per account"}
             </span>
             <span className="campaign-scheduler-banner-pill">
               {hasActiveRun ? "Queued behind active run" : "Ready to queue"}
@@ -145,6 +175,43 @@ export default function BulkPublishSection({
         </div>
 
         <div className="campaign-scheduler-workspace">
+          <fieldset className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide">
+            <span className="detail-form-label">Publish mode</span>
+            <div className="campaign-scheduler-mode-options">
+              <label className="campaign-scheduler-mode-option">
+                <input
+                  type="radio"
+                  name="publishMode"
+                  value={PUBLISH_MODE_WAVE_SCHEDULE}
+                  checked={isWaveSchedule}
+                  onChange={formik.handleChange}
+                />
+                <span>
+                  <strong>Wave Schedule</strong>
+                  <span className="campaign-scheduler-mode-hint">
+                    Round-robin accounts; each wave shares one slot from Publish
+                    At (7am / 3pm / 11pm)
+                  </span>
+                </span>
+              </label>
+              <label className="campaign-scheduler-mode-option">
+                <input
+                  type="radio"
+                  name="publishMode"
+                  value={PUBLISH_MODE_SAME_TIME}
+                  checked={!isWaveSchedule}
+                  onChange={formik.handleChange}
+                />
+                <span>
+                  <strong>Same Time</strong>
+                  <span className="campaign-scheduler-mode-hint">
+                    Exactly one video per account, all at Publish At
+                  </span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
           <label className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide campaign-scheduler-panel-caption">
             <span className="detail-form-label">Caption</span>
             <textarea
@@ -162,7 +229,9 @@ export default function BulkPublishSection({
           <div className="campaign-scheduler-row campaign-scheduler-row-single">
             <label className="detail-form-field campaign-scheduler-panel">
               <span className="campaign-scheduler-panel-head">
-                <span className="detail-form-label">Publish At</span>
+                <span className="detail-form-label">
+                  {isWaveSchedule ? "First wave Publish At" : "Publish At"}
+                </span>
                 <span className="campaign-scheduler-inline-tag">Eastern time</span>
               </span>
               <input
@@ -171,38 +240,19 @@ export default function BulkPublishSection({
                 type="datetime-local"
                 value={formik.values.publishAt}
                 min={minimumPublishAt}
-                onChange={formik.handleChange}
+                onChange={(event) => {
+                  const value = String(event.target.value || "").trim();
+
+                  formik.setFieldValue(
+                    "publishAt",
+                    value ? normalizeBulkPublishDateTimeInput(value) : ""
+                  );
+                }}
                 onBlur={formik.handleBlur}
                 required
               />
             </label>
           </div>
-
-          <fieldset className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide">
-            <legend className="detail-form-label">URL watcher</legend>
-            <div className="detail-radio-group">
-              <label className="detail-radio-option">
-                <input
-                  name="urlWatcherEnabled"
-                  type="radio"
-                  checked={formik.values.urlWatcherEnabled === true}
-                  onChange={() => formik.setFieldValue("urlWatcherEnabled", true)}
-                  onBlur={formik.handleBlur}
-                />
-                <span>Enabled</span>
-              </label>
-              <label className="detail-radio-option">
-                <input
-                  name="urlWatcherEnabled"
-                  type="radio"
-                  checked={formik.values.urlWatcherEnabled === false}
-                  onChange={() => formik.setFieldValue("urlWatcherEnabled", false)}
-                  onBlur={formik.handleBlur}
-                />
-                <span>Disabled</span>
-              </label>
-            </div>
-          </fieldset>
 
           <label className="detail-form-field campaign-scheduler-panel campaign-scheduler-panel-wide">
             <span className="campaign-scheduler-panel-head">
@@ -233,11 +283,6 @@ export default function BulkPublishSection({
           {formik.touched.videoDir && formik.errors.videoDir ? (
             <p className="detail-form-message detail-form-message-error campaign-scheduler-feedback">
               {formik.errors.videoDir}
-            </p>
-          ) : null}
-          {formik.touched.urlWatcherEnabled && formik.errors.urlWatcherEnabled ? (
-            <p className="detail-form-message detail-form-message-error campaign-scheduler-feedback">
-              {formik.errors.urlWatcherEnabled}
             </p>
           ) : null}
           {error ? (

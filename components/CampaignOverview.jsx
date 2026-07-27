@@ -5,8 +5,16 @@ import BulkPublishProgressModal from "@/components/campaignOverview/BulkPublishP
 import RecentRunsTable from "@/components/campaignOverview/RecentRunsTable";
 import BulkPublishSection from "@/components/campaignOverview/BulkPublishSection";
 import MetricChartCard from "@/components/campaignOverview/MetricChartCard";
+import {
+  buildNextPublishDates,
+  getCampaignPostIntervalHours,
+} from "@/lib/post/schedule";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
-import { addHoursToEasternDateTimeInput } from "@/lib/utils/easternTime";
+import {
+  easternDateTimeInputToIso,
+  isoToEasternDateTimeInput,
+} from "@/lib/utils/easternTime";
+import { pushRouteIfChanged } from "@/lib/utils/navigation";
 
 const ACTIVE_BULK_PUBLISH_STATUSES = ["queued", "running", "cancelling"];
 const TERMINAL_BULK_PUBLISH_STATUSES = ["completed", "failed", "cancelled"];
@@ -41,7 +49,7 @@ function upsertRun(runs, nextRun) {
   ]).slice(0, RECENT_RUN_LIMIT);
 }
 
-function resolveNextBulkPublishAtInput(values) {
+function resolveNextBulkPublishAtInput(values, campaign) {
   const publishAt = String(values?.publishAt || "").trim();
 
   if (!publishAt) {
@@ -49,7 +57,13 @@ function resolveNextBulkPublishAtInput(values) {
   }
 
   try {
-    return addHoursToEasternDateTimeInput(publishAt, 2);
+    const nextIso = buildNextPublishDates({
+      campaignSlug: campaign,
+      existingPosts: [{ publish_at: easternDateTimeInputToIso(publishAt) }],
+      count: 1,
+    })[0];
+
+    return isoToEasternDateTimeInput(nextIso) || publishAt;
   } catch {
     return publishAt;
   }
@@ -81,6 +95,10 @@ export default function CampaignOverview({ actions, campaign }) {
   const canRetryAnyFailedRuns = runs.some((run) =>
     TERMINAL_BULK_PUBLISH_STATUSES.includes(run.status) &&
     Number(run?.failedCount || 0) > 0
+  );
+  const assignedAccountCount = Math.max(
+    0,
+    Number(campaign?.metrics?.totalAccounts?.value || 0) || 0
   );
   const retryAllFailedMessage = !runs.length
     ? ""
@@ -132,10 +150,6 @@ export default function CampaignOverview({ actions, campaign }) {
       }
     };
 
-    stream.onerror = () => {
-      stream.close();
-    };
-
     return () => {
       stream.close();
     };
@@ -146,10 +160,10 @@ export default function CampaignOverview({ actions, campaign }) {
 
     setActiveMetricKey(metricKey);
     setPendingMetricKey(metricKey);
-    router.push({
-      pathname: "/campaign-details/[slug]",
-      query: { slug: campaign.slug, metric: metricKey },
-    });
+    void pushRouteIfChanged(
+      router,
+      `/campaign-details/${encodeURIComponent(campaign.slug)}?metric=${encodeURIComponent(metricKey)}`
+    );
   }
 
   async function fetchRunProgress(runId) {
@@ -392,10 +406,10 @@ export default function CampaignOverview({ actions, campaign }) {
         ) : null}
       </div>
 
-      {campaign.slug !== "kick-campaign" ? (
-        <BulkPublishSection
-          assignedAccountCount={Number(campaign?.metrics?.totalAccounts?.value || 0)}
+      <BulkPublishSection
+          assignedAccountCount={assignedAccountCount}
           campaignSlug={campaign.slug}
+          campaignIntervalHours={getCampaignPostIntervalHours(campaign)}
           defaultPublishAt={campaign.defaultBulkPublishAt || ""}
           error={schedulerError}
           success={schedulerSuccess}
@@ -419,7 +433,7 @@ export default function CampaignOverview({ actions, campaign }) {
                   campaignSlug: campaign.slug,
                   caption: values.caption,
                   publishAt: values.publishAt,
-                  publishMode: "same-time",
+                  publishMode: values.publishMode || "same-time",
                   videoDir: values.videoDir,
                 }),
               });
@@ -430,7 +444,10 @@ export default function CampaignOverview({ actions, campaign }) {
               }
 
               const queuedRun = payload.data;
-              const nextPublishAt = resolveNextBulkPublishAtInput(values);
+              const nextPublishAt = resolveNextBulkPublishAtInput(
+                values,
+                campaign
+              );
               setProgress(queuedRun);
               setSelectedRunId(queuedRun.runId || "");
               setRuns((current) => upsertRun(current, queuedRun));
@@ -449,11 +466,9 @@ export default function CampaignOverview({ actions, campaign }) {
               helpers.setSubmitting(false);
             }
           }}
-        />
-      ) : null}
+      />
 
-      {campaign.slug !== "kick-campaign" ? (
-        <RecentRunsTable
+      <RecentRunsTable
           runs={runs}
           selectedRunId={selectedRunId}
           cancelRunId={cancelRunId}
@@ -462,8 +477,7 @@ export default function CampaignOverview({ actions, campaign }) {
           onCancelRun={(runId) => cancelBulkPublish(runId)}
           onRetryRun={(runId) => retryFailedBulkPublish(runId)}
           onViewRun={(runId) => loadRun(runId, true)}
-        />
-      ) : null}
+      />
 
       <p className="campaign-detail-hint">
         {isPending
@@ -471,7 +485,7 @@ export default function CampaignOverview({ actions, campaign }) {
           : "Tip: Click a chart card to drill into the underlying accounts or posts."}
       </p>
 
-      {campaign.slug !== "kick-campaign" && showProgressModal && progress?.runId ? (
+      {showProgressModal && progress?.runId ? (
         <BulkPublishProgressModal
           progress={progress}
           cancelLoading={cancelLoading && cancelRunId === progress.runId}

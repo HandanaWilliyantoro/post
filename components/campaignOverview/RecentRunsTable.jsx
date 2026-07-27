@@ -75,7 +75,7 @@ export default function RecentRunsTable({
                   key={run.runId}
                   className={isSelected ? "campaign-run-row-selected" : ""}
                 >
-                  <td>
+                  <td data-label="Run">
                     <div className="detail-post-main">
                       <span className="detail-strong">
                         {isSelected ? "Selected" : "Run"} {formatRunLabel(run)}
@@ -85,12 +85,12 @@ export default function RecentRunsTable({
                       </span>
                     </div>
                   </td>
-                  <td>{formatEasternDateTime(run.publishAt || run.createdAt || run.queuedAt)}</td>
-                  <td><StatusPill value={run.status || "idle"} /></td>
-                  <td>{run.processedCount || 0} / {run.totalCount || 0}</td>
-                  <td>{run.completedCount || 0}</td>
-                  <td>{run.failedCount || 0}</td>
-                  <td>
+                  <td data-label="Publish at">{formatEasternDateTime(run.publishAt || run.createdAt || run.queuedAt)}</td>
+                  <td data-label="Status"><StatusPill value={run.status || "idle"} /></td>
+                  <td data-label="Processed">{run.processedCount || 0} / {run.totalCount || 0}</td>
+                  <td data-label="Completed">{run.completedCount || 0}</td>
+                  <td data-label="Failed">{run.failedCount || 0}</td>
+                  <td data-label="Actions">
                     <div className="detail-row-actions">
                       <button
                         type="button"

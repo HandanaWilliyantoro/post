@@ -21,7 +21,6 @@ export default function CampaignSidebar({
   campaigns,
   collapsed,
   currentPath,
-  extraLinks = [],
   onToggle,
   onCreate,
 }) {
@@ -38,31 +37,8 @@ export default function CampaignSidebar({
         <SidebarToggleIcon collapsed={collapsed} />
       </button>
 
-      <div className="flex h-full flex-col">
-        <nav className="mt-6 grid gap-3">
-          {extraLinks.map((item) => {
-            const active = isActiveRoute(currentPath, item.href);
-            const className = `campaign-nav-item ${active ? "campaign-nav-item-active" : ""} ${collapsed ? "campaign-nav-item-collapsed" : ""}`;
-
-            return (
-              active ? (
-                <span key={item.href} className={className} aria-current="page" aria-label={item.label} title={item.label}>
-                  <span className="campaign-nav-icon">
-                    <CampaignIcon type={item.icon} />
-                  </span>
-                  <span className={`campaign-nav-label ${collapsed ? "campaign-nav-label-hidden" : ""}`}>{item.label}</span>
-                </span>
-              ) : (
-                <Link key={item.href} href={item.href} className={className} aria-label={item.label} title={item.label} onClick={(event) => preventSameRouteNavigation(event, item.href)}>
-                  <span className="campaign-nav-icon">
-                    <CampaignIcon type={item.icon} />
-                  </span>
-                  <span className={`campaign-nav-label ${collapsed ? "campaign-nav-label-hidden" : ""}`}>{item.label}</span>
-                </Link>
-              )
-            );
-          })}
-
+      <div className="campaign-sidebar-inner flex h-full flex-col">
+        <nav className="campaign-nav-list mt-6 grid gap-3">
           {campaigns.map((campaign) => {
             const active = isActiveRoute(currentPath, campaign.href);
             const className = `campaign-nav-item ${active ? "campaign-nav-item-active" : ""} ${collapsed ? "campaign-nav-item-collapsed" : ""}`;
@@ -87,7 +63,7 @@ export default function CampaignSidebar({
           })}
         </nav>
 
-        <div className="mt-auto pt-4">
+        <div className="campaign-sidebar-footer mt-auto pt-4">
           <button type="button" onClick={onCreate} className={`campaign-create-button ${collapsed ? "campaign-create-button-collapsed" : ""}`} aria-label="Add campaign" title="Add campaign">
             <span className="campaign-nav-icon">
               <PlusIcon />

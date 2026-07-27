@@ -54,6 +54,53 @@ function getSingleFile(value) {
   return value;
 }
 
+function isVideoFile(file) {
+  const fileName = String(file?.originalFilename || "").trim();
+  const mimeType = String(file?.mimetype || "").toLowerCase();
+
+  return (
+    mimeType.startsWith("video/") ||
+    /\.(mp4|mov|m4v|avi|mkv|webm)$/i.test(fileName)
+  );
+}
+
+function isImageFile(file) {
+  const fileName = String(file?.originalFilename || "").trim();
+  const mimeType = String(file?.mimetype || "").toLowerCase();
+
+  return (
+    mimeType.startsWith("image/") ||
+    /\.(png|jpe?g)$/i.test(fileName)
+  );
+}
+
+function getUploadedMedia(files) {
+  const uploadedImage = getSingleFile(files.image);
+  const uploadedVideo = getSingleFile(files.video);
+
+  if (uploadedImage?.filepath) {
+    return {
+      file: uploadedImage,
+      mediaType: "image",
+      isValid: isImageFile(uploadedImage),
+    };
+  }
+
+  if (uploadedVideo?.filepath) {
+    return {
+      file: uploadedVideo,
+      mediaType: "video",
+      isValid: isVideoFile(uploadedVideo),
+    };
+  }
+
+  return {
+    file: null,
+    mediaType: "",
+    isValid: false,
+  };
+}
+
 function buildTargetSnapshot(account) {
   return buildStoredPostTarget(account);
 }
@@ -70,7 +117,7 @@ export default async function handler(req, res) {
     const campaignSlug = String(getSingleValue(fields.campaignSlug) || "").trim();
     const content = String(getSingleValue(fields.content) || "").trim();
     const publishAt = String(getSingleValue(fields.publish_at) || "").trim();
-    const uploadedFile = getSingleFile(files.video);
+    const uploadedMedia = getUploadedMedia(files);
 
     if (!campaignSlug) {
       return res
@@ -90,10 +137,17 @@ export default async function handler(req, res) {
         .json({ success: false, error: "Valid publish_at is required" });
     }
 
-    if (!uploadedFile?.filepath || !uploadedFile?.originalFilename) {
+    if (!uploadedMedia.file?.filepath || !uploadedMedia.file?.originalFilename) {
       return res
         .status(400)
-        .json({ success: false, error: "A video file is required" });
+        .json({ success: false, error: "A video or image file is required" });
+    }
+
+    if (!uploadedMedia.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: `A valid ${uploadedMedia.mediaType} file is required`,
+      });
     }
 
     const campaign = await findCampaignBySlug(campaignSlug);
@@ -133,7 +187,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const stagedUpload = await stageManualPostUpload(uploadedFile);
+    const stagedUpload = await stageManualPostUpload(uploadedMedia.file);
     const queuedPost = await queueManualPost({
       campaignSlug,
       campaignType: campaign?.campaignType,
@@ -141,6 +195,7 @@ export default async function handler(req, res) {
       publish_at: publishAtIso,
       duplicateKey,
       targets: targetSnapshot,
+      mediaType: uploadedMedia.mediaType,
       fileName: stagedUpload.fileName,
       filePath: stagedUpload.filePath,
     });

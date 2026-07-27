@@ -9,8 +9,10 @@ import {
 import {
   buildRetryJobsFromFailedPosts,
   resolveRetryableFailedJobs,
+  validateBulkPublishSetup,
 } from "@/lib/pipeline/bulkPublish.pipeline";
-import { normalizeBoolean } from "@/lib/campaignNormalization";
+import { normalizeBulkPublishMode } from "@/lib/pipeline/bulkPublishModes";
+import { resolveAccountOrderModeForCampaign } from "@/lib/pipeline/accountOrder";
 import { listFailedPosts } from "@/lib/post";
 import { buildPostDuplicateKey } from "@/lib/post/duplicateGuard";
 import {
@@ -20,7 +22,10 @@ import {
   listProgressRuns,
   saveProgress,
 } from "@/lib/utils/progressManager";
-import { easternDateTimeInputToIso } from "@/lib/utils/easternTime";
+import {
+  easternDateTimeInputToIso,
+  normalizeBulkPublishDateTimeInput,
+} from "@/lib/utils/easternTime";
 
 const ACTIVE_BULK_PUBLISH_STATUSES = ["queued", "running", "cancelling"];
 const TERMINAL_BULK_PUBLISH_STATUSES = ["completed", "failed", "cancelled"];
@@ -31,22 +36,6 @@ function parseLimit(value, fallback = 6) {
   return Math.max(
     1,
     Math.min(100, Number.parseInt(String(value || fallback), 10) || fallback)
-  );
-}
-
-function hasUrlWatcherSelection(value) {
-  if (typeof value === "boolean") {
-    return true;
-  }
-
-  if (typeof value === "number") {
-    return value === 0 || value === 1;
-  }
-
-  const normalized = String(value ?? "").trim().toLowerCase();
-
-  return ["true", "false", "1", "0", "yes", "no", "on", "off"].includes(
-    normalized
   );
 }
 
@@ -80,6 +69,12 @@ function dedupeRetryJobs(campaignSlug, retryJobs) {
     seen.add(key);
     return true;
   });
+}
+
+function disableRetryJobUrlWatcher(retryJobs) {
+  return Array.isArray(retryJobs)
+    ? retryJobs.map((job) => ({ ...job, urlWatcherEnabled: false }))
+    : [];
 }
 
 export default async function handler(req, res) {
@@ -224,8 +219,12 @@ export default async function handler(req, res) {
     const campaignSlug = String(req.body?.campaignSlug || "").trim();
     const caption = String(req.body?.caption || "").trim();
     const publishAtInput = String(req.body?.publishAt || "").trim();
-    const publishMode = "same-time";
-    const urlWatcherEnabledInput = req.body?.urlWatcherEnabled;
+    const publishMode = normalizeBulkPublishMode(req.body?.publishMode);
+    const accountOrderMode = resolveAccountOrderModeForCampaign(
+      campaignSlug,
+      req.body?.accountOrderMode
+    );
+    const accountOrderSeed = null;
     const videoDir = String(req.body?.videoDir || "").trim();
 
     if (action === "retry-failed") {
@@ -268,7 +267,9 @@ export default async function handler(req, res) {
       let retryableFailedJobs = [];
 
       try {
-        retryableFailedJobs = await resolveRetryableFailedJobs(sourceProgress);
+        retryableFailedJobs = disableRetryJobUrlWatcher(
+          await resolveRetryableFailedJobs(sourceProgress)
+        );
       } catch (error) {
         return res.status(409).json({
           success: false,
@@ -293,10 +294,12 @@ export default async function handler(req, res) {
         caption: sourceProgress.caption,
         publishAt: sourceProgress.publishAt,
         publishMode: sourceProgress.publishMode,
-        urlWatcherEnabled: normalizeBoolean(
-          sourceProgress.urlWatcherEnabled,
-          false
+        accountOrderMode: resolveAccountOrderModeForCampaign(
+          sourceProgress.campaignSlug,
+          sourceProgress.accountOrderMode || accountOrderMode
         ),
+        accountOrderSeed: sourceProgress.accountOrderSeed || accountOrderSeed,
+        urlWatcherEnabled: false,
         videoDir: sourceProgress.videoDir,
         status: "queued",
         completed: false,
@@ -333,9 +336,8 @@ export default async function handler(req, res) {
         });
       }
 
-      const retryJobs = dedupeRetryJobs(
-        campaignSlug,
-        buildRetryJobsFromFailedPosts(failedPosts)
+      const retryJobs = disableRetryJobUrlWatcher(
+        dedupeRetryJobs(campaignSlug, buildRetryJobsFromFailedPosts(failedPosts))
       );
 
       if (!retryJobs.length) {
@@ -350,15 +352,14 @@ export default async function handler(req, res) {
         String(retryJobs[0]?.caption || "").trim() || "Retry failed posts";
       const firstRetryJobPublishAt =
         String(retryJobs[0]?.publishAt || "").trim() || new Date().toISOString();
-      const retryUrlWatcherEnabled = failedPosts.some((post) =>
-        normalizeBoolean(post?.urlWatcherEnabled, false)
-      );
       const progress = await createProgress({
         campaignSlug,
         caption: firstRetryJobCaption,
         publishAt: firstRetryJobPublishAt,
         publishMode: "same-time",
-        urlWatcherEnabled: retryUrlWatcherEnabled,
+        accountOrderMode,
+        accountOrderSeed,
+        urlWatcherEnabled: false,
         videoDir: failedPosts
           .map((post) => String(post?.source_file_path || "").trim())
           .filter(Boolean)
@@ -400,7 +401,9 @@ export default async function handler(req, res) {
     let publishAtIso = "";
 
     try {
-      publishAtIso = easternDateTimeInputToIso(publishAtInput);
+      publishAtIso = easternDateTimeInputToIso(
+        normalizeBulkPublishDateTimeInput(publishAtInput)
+      );
     } catch {
       return res
         .status(400)
@@ -413,21 +416,38 @@ export default async function handler(req, res) {
         .json({ success: false, error: "videoDir is required" });
     }
 
-    if (!hasUrlWatcherSelection(urlWatcherEnabledInput)) {
+    if (new Date(publishAtIso).getTime() < Date.now() - 60 * 1000) {
       return res.status(400).json({
         success: false,
-        error: "URL watcher setting is required",
+        error: "Publish time must be current or future Eastern time",
       });
     }
 
-    const urlWatcherEnabled = normalizeBoolean(urlWatcherEnabledInput, false);
+    try {
+      await validateBulkPublishSetup({
+        campaignSlug,
+        caption,
+        videoDir,
+        publishMode,
+        publishAt: publishAtIso,
+        accountOrderMode,
+        accountOrderSeed,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error?.message || "Bulk publish validation failed",
+      });
+    }
 
     const progress = await createProgress({
       campaignSlug,
       caption,
       publishAt: publishAtIso,
       publishMode,
-      urlWatcherEnabled,
+      accountOrderMode,
+      accountOrderSeed,
+      urlWatcherEnabled: false,
       videoDir,
       status: "queued",
       completed: false,

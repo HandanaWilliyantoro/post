@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/router";
 
 import ModalShell from "@/components/campaignDetails/ModalShell";
 import PrimaryButton from "@/components/PrimaryButton";
 import useFormErrorSnackbar from "@/components/useFormErrorSnackbar";
-import { formatAccountPlatformLabel } from "@/lib/accounts/platforms";
-import { showErrorSnackbar } from "@/lib/ui/snackbar";
+import {
+  ACCOUNT_PLATFORM_OPTIONS,
+  DEFAULT_ACCOUNT_PLATFORM,
+  formatAccountPlatformLabel,
+} from "@/lib/accounts/platforms";
+import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 
 function getAccountAvatarUrl(account) {
   return String(
@@ -24,29 +29,25 @@ function getAccountInitials(account) {
 
 export default function AddAccountModal({
   availableAccounts = [],
+  campaignSlug = "",
   formError,
   formSuccess,
   formik,
   onClose,
 }) {
+  const router = useRouter();
   const selectedAccount = availableAccounts.find(
     (account) => account.id === formik.values.accountId
   );
   const [searchText, setSearchText] = useState(selectedAccount?.username || "");
   const [isOpen, setIsOpen] = useState(false);
+  const [connectPlatform, setConnectPlatform] = useState(
+    DEFAULT_ACCOUNT_PLATFORM
+  );
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useFormErrorSnackbar(formik);
-
-  useEffect(() => {
-    if (!availableAccounts.length) {
-      showErrorSnackbar(
-        "No accounts with an open campaign slot. Open All Accounts to sync from PostOnce.",
-        {
-          autoHideDuration: 6000,
-        }
-      );
-    }
-  }, [availableAccounts.length]);
 
   const filteredAccounts = useMemo(() => {
     const needle = searchText.trim().toLowerCase();
@@ -77,10 +78,132 @@ export default function AddAccountModal({
     setIsOpen(false);
   }
 
+  async function handleConnectAccount() {
+    const slug = String(campaignSlug || router.query?.slug || "").trim();
+
+    if (!slug) {
+      showErrorSnackbar("Campaign is required");
+      return;
+    }
+
+    const authWindow = window.open("about:blank", "_blank");
+
+    if (!authWindow) {
+      showErrorSnackbar("Allow pop-ups to connect the account.");
+      return;
+    }
+
+    authWindow.opener = null;
+    setIsConnecting(true);
+
+    try {
+      const response = await fetch("/api/accounts/connect-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignSlug: slug,
+          platform: connectPlatform,
+          permissions: ["posts"],
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to connect account");
+      }
+
+      const authUrl = String(payload?.data?.url || "").trim();
+
+      if (!authUrl) {
+        throw new Error("Connection URL is missing");
+      }
+
+      authWindow.location.href = authUrl;
+      showSuccessSnackbar("Connection opened in a new tab.");
+    } catch (error) {
+      authWindow.close();
+      showErrorSnackbar(error?.message || "Failed to connect account");
+      setIsConnecting(false);
+    }
+  }
+
+  async function handleRefreshAccounts() {
+    const slug = String(campaignSlug || router.query?.slug || "").trim();
+
+    if (!slug) {
+      showErrorSnackbar("Campaign is required");
+      return;
+    }
+
+    setIsRefreshing(true);
+
+    try {
+      const params = new URLSearchParams({
+        campaignSlug: slug,
+        sync: "1",
+      });
+      const response = await fetch(`/api/accounts?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to refresh accounts");
+      }
+
+      if (payload?.warning) {
+        showErrorSnackbar(payload.warning, { autoHideDuration: 6000 });
+        setIsRefreshing(false);
+        return;
+      }
+
+      showSuccessSnackbar("Accounts refreshed.");
+      router.reload();
+    } catch (error) {
+      showErrorSnackbar(error?.message || "Failed to refresh accounts");
+      setIsRefreshing(false);
+    }
+  }
+
   return (
     <ModalShell title="Add account" onClose={onClose}>
       <form className="detail-account-form" onSubmit={formik.handleSubmit}>
         <div className="detail-form-grid">
+          <label className="detail-form-field detail-form-field-wide">
+            <span className="detail-form-label">Connect account</span>
+            <div className="detail-connect-controls">
+              <select
+                className="detail-form-input detail-connect-select"
+                value={connectPlatform}
+                onChange={(event) => setConnectPlatform(event.target.value)}
+                disabled={isConnecting || isRefreshing}
+              >
+                {ACCOUNT_PLATFORM_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <PrimaryButton
+                className="dashboard-button-inline detail-action-button"
+                disabled={isConnecting || isRefreshing}
+                onClick={handleConnectAccount}
+                type="button"
+              >
+                {isConnecting ? "Connecting..." : "Connect"}
+              </PrimaryButton>
+              <PrimaryButton
+                className="dashboard-button-inline"
+                disabled={isConnecting || isRefreshing}
+                onClick={handleRefreshAccounts}
+                type="button"
+                variant="ghost"
+              >
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </PrimaryButton>
+            </div>
+          </label>
           <label className="detail-form-field detail-form-field-wide">
             <span className="detail-form-label">Available account</span>
             <div className="detail-combobox">
@@ -184,7 +307,7 @@ export default function AddAccountModal({
         ) : null}
         {!availableAccounts.length ? (
           <p className="detail-form-message detail-form-message-error">
-            No accounts with an open campaign slot. Open All Accounts to sync from PostOnce.
+            No available connected accounts.
           </p>
         ) : null}
         {formError ? (

@@ -49,9 +49,24 @@ export default function Layout({ children, title = "Campaign Dashboard" }) {
       );
     }
 
+    function handleCampaignUpdated(event) {
+      const updatedCampaign = event?.detail?.campaign;
+      const updatedSlug = String(updatedCampaign?.slug || "").trim();
+      if (!updatedSlug) return;
+      setCampaigns((current) =>
+        current.map((campaign) =>
+          campaign.slug === updatedSlug
+            ? { ...campaign, ...updatedCampaign }
+            : campaign
+        )
+      );
+    }
+
     window.addEventListener("campaign-deleted", handleCampaignDeleted);
+    window.addEventListener("campaign-updated", handleCampaignUpdated);
     return () => {
       window.removeEventListener("campaign-deleted", handleCampaignDeleted);
+      window.removeEventListener("campaign-updated", handleCampaignUpdated);
     };
   }, []);
 
@@ -92,25 +107,18 @@ export default function Layout({ children, title = "Campaign Dashboard" }) {
   }
 
   return (
-    <div className="dashboard-shell h-screen overflow-hidden">
-      <div className="mx-auto flex h-screen max-w-[1600px] overflow-hidden">
+    <div className="dashboard-shell dashboard-shell-root h-screen overflow-hidden">
+      <div className="dashboard-frame mx-auto flex h-screen max-w-[1600px] overflow-hidden">
         <CampaignSidebar
           campaigns={campaigns}
           collapsed={collapsed}
           currentPath={router.asPath}
-          extraLinks={[
-            {
-              href: "/accounts",
-              icon: "accounts",
-              label: "All Accounts",
-            },
-          ]}
           onToggle={() => setCollapsed((value) => !value)}
           onCreate={() => setShowCreateCampaignModal(true)}
         />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-          <div className="dashboard-main-panel campaign-main-panel min-h-full rounded-[28px] p-6 sm:p-8">
+        <main className="dashboard-content flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <div className="dashboard-main-panel campaign-main-panel dashboard-panel min-h-full rounded-[28px] p-6 sm:p-8">
             {children}
           </div>
         </main>
