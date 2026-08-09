@@ -6,8 +6,9 @@ import RecentRunsTable from "@/components/campaignOverview/RecentRunsTable";
 import BulkPublishSection from "@/components/campaignOverview/BulkPublishSection";
 import MetricChartCard from "@/components/campaignOverview/MetricChartCard";
 import {
-  buildNextPublishDates,
   getCampaignPostIntervalHours,
+  resolveDefaultCampaignPublishAt,
+  snapPublishAtToScheduleSlot,
 } from "@/lib/post/schedule";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 import {
@@ -49,19 +50,24 @@ function upsertRun(runs, nextRun) {
   ]).slice(0, RECENT_RUN_LIMIT);
 }
 
-function resolveNextBulkPublishAtInput(values, campaign) {
-  const publishAt = String(values?.publishAt || "").trim();
+function resolveNextBulkPublishAtInput(publishAtValue, campaign) {
+  const publishAt = String(publishAtValue || "").trim();
 
   if (!publishAt) {
     return "";
   }
 
   try {
-    const nextIso = buildNextPublishDates({
+    const baseIso =
+      publishAt.includes("T") && /Z$|[+-]\d{2}:\d{2}$/.test(publishAt)
+        ? publishAt
+        : easternDateTimeInputToIso(publishAt);
+    const snappedIso = snapPublishAtToScheduleSlot(baseIso, campaign);
+    // Next default = 2h after this campaign run's publish slot (same campaign only)
+    const nextIso = resolveDefaultCampaignPublishAt({
       campaignSlug: campaign,
-      existingPosts: [{ publish_at: easternDateTimeInputToIso(publishAt) }],
-      count: 1,
-    })[0];
+      lastPublishAt: snappedIso,
+    });
 
     return isoToEasternDateTimeInput(nextIso) || publishAt;
   } catch {
@@ -118,7 +124,23 @@ export default function CampaignOverview({ actions, campaign }) {
     }
   }, [schedulerSuccess]);
 
+  function belongsToCurrentCampaign(run) {
+    const runCampaign = String(run?.campaignSlug || "").trim();
+    const current = String(campaign?.slug || "").trim();
+
+    return Boolean(runCampaign && current && runCampaign === current);
+  }
+
+  function filterCampaignRuns(runsList = []) {
+    return (Array.isArray(runsList) ? runsList : []).filter(belongsToCurrentCampaign);
+  }
+
   useEffect(() => {
+    // Clear other campaigns' runs immediately when switching
+    setRuns([]);
+    setProgress(null);
+    setSelectedRunId("");
+    setShowProgressModal(false);
     void loadProgressSummary();
   }, [campaign.slug]);
 
@@ -128,19 +150,21 @@ export default function CampaignOverview({ actions, campaign }) {
     }
 
     const stream = new EventSource(
-      `/api/bulk-publish-stream?runId=${encodeURIComponent(selectedRunId)}`
+      `/api/bulk-publish-stream?runId=${encodeURIComponent(selectedRunId)}&campaignSlug=${encodeURIComponent(campaign.slug)}`
     );
 
     stream.onmessage = (event) => {
       try {
         const nextProgress = JSON.parse(event.data);
 
-        if (!nextProgress?.runId) {
+        if (!nextProgress?.runId || !belongsToCurrentCampaign(nextProgress)) {
           return;
         }
 
         setProgress(nextProgress);
-        setRuns((current) => upsertRun(current, nextProgress));
+        setRuns((current) =>
+          filterCampaignRuns(upsertRun(current, nextProgress))
+        );
 
         if (["completed", "failed", "cancelled"].includes(nextProgress.status)) {
           stream.close();
@@ -153,7 +177,7 @@ export default function CampaignOverview({ actions, campaign }) {
     return () => {
       stream.close();
     };
-  }, [isSelectedRunActive, selectedRunId]);
+  }, [campaign.slug, isSelectedRunActive, selectedRunId]);
 
   function openDetails(metricKey) {
     if (isPending) return;
@@ -168,12 +192,16 @@ export default function CampaignOverview({ actions, campaign }) {
 
   async function fetchRunProgress(runId) {
     const response = await fetch(
-      `/api/bulk-publish?runId=${encodeURIComponent(runId)}`
+      `/api/bulk-publish?runId=${encodeURIComponent(runId)}&campaignSlug=${encodeURIComponent(campaign.slug)}`
     );
     const payload = await response.json();
 
     if (!response.ok || !payload?.success) {
       throw new Error(payload?.error || "Failed to load progress");
+    }
+
+    if (!belongsToCurrentCampaign(payload.data)) {
+      throw new Error("Bulk publish run belongs to a different campaign");
     }
 
     return payload.data;
@@ -185,9 +213,16 @@ export default function CampaignOverview({ actions, campaign }) {
 
     try {
       const nextProgress = await fetchRunProgress(runId);
+
+      if (!belongsToCurrentCampaign(nextProgress)) {
+        return;
+      }
+
       setSelectedRunId(nextProgress?.runId || "");
       setProgress(nextProgress);
-      setRuns((current) => upsertRun(current, nextProgress));
+      setRuns((current) =>
+        filterCampaignRuns(upsertRun(current, nextProgress))
+      );
 
       if (openModal && nextProgress?.runId) {
         setShowProgressModal(true);
@@ -215,9 +250,19 @@ export default function CampaignOverview({ actions, campaign }) {
         throw new Error(payload?.error || "Failed to load progress");
       }
 
-      const nextRuns = Array.isArray(payload.runs) ? payload.runs : [];
+      const nextRuns = filterCampaignRuns(
+        Array.isArray(payload.runs) ? payload.runs : []
+      );
+      const preferred = String(preferredRunId || "").trim();
       const runIdToLoad =
-        preferredRunId || selectedRunId || payload.data?.runId || "";
+        (preferred && nextRuns.some((run) => run.runId === preferred)
+          ? preferred
+          : "") ||
+        (payload.data?.runId && belongsToCurrentCampaign(payload.data)
+          ? payload.data.runId
+          : "") ||
+        nextRuns[0]?.runId ||
+        "";
       let nextProgress = null;
 
       if (runIdToLoad) {
@@ -226,12 +271,18 @@ export default function CampaignOverview({ actions, campaign }) {
         } catch {
           nextProgress =
             nextRuns.find((run) => run.runId === runIdToLoad) ||
-            (payload.data?.runId ? payload.data : null);
+            (belongsToCurrentCampaign(payload.data) ? payload.data : null);
         }
       }
 
+      if (nextProgress && !belongsToCurrentCampaign(nextProgress)) {
+        nextProgress = null;
+      }
+
       setRuns(
-        nextProgress?.runId ? upsertRun(nextRuns, nextProgress) : nextRuns
+        nextProgress?.runId
+          ? filterCampaignRuns(upsertRun(nextRuns, nextProgress))
+          : nextRuns
       );
       setSelectedRunId(nextProgress?.runId || "");
       setProgress(nextProgress);
@@ -444,8 +495,9 @@ export default function CampaignOverview({ actions, campaign }) {
               }
 
               const queuedRun = payload.data;
+              // Advance from the server-snapped 2h slot, not raw form input
               const nextPublishAt = resolveNextBulkPublishAtInput(
-                values,
+                queuedRun?.publishAt || values.publishAt,
                 campaign
               );
               setProgress(queuedRun);
@@ -454,6 +506,7 @@ export default function CampaignOverview({ actions, campaign }) {
               setShowProgressModal(true);
               if (nextPublishAt) {
                 helpers.setFieldValue("publishAt", nextPublishAt, false);
+                helpers.setFieldTouched("publishAt", false, false);
               }
               setSchedulerSuccess(
                 hasActiveRuns

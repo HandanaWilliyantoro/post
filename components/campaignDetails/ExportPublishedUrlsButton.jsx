@@ -9,7 +9,7 @@ function getDownloadFilename(response, campaignSlug) {
 
   return (
     match?.[1] ||
-    `${String(campaignSlug || "campaign").trim() || "campaign"}-published-post-urls-last-24h.csv`
+    `${String(campaignSlug || "campaign").trim() || "campaign"}-post-urls-today-yesterday.csv`
   );
 }
 
@@ -21,7 +21,9 @@ async function getErrorMessage(response) {
     return payload?.error || "Failed to export published URLs";
   }
 
-  return (await response.text().catch(() => "")) || "Failed to export published URLs";
+  return (
+    (await response.text().catch(() => "")) || "Failed to export published URLs"
+  );
 }
 
 export default function ExportPublishedUrlsButton({ campaignSlug }) {
@@ -36,9 +38,7 @@ export default function ExportPublishedUrlsButton({ campaignSlug }) {
 
     try {
       const response = await fetch(
-        `/api/posts/export-urls?campaignSlug=${encodeURIComponent(
-          campaignSlug
-        )}&hours=24`
+        `/api/posts/export-urls?campaignSlug=${encodeURIComponent(campaignSlug)}`
       );
 
       if (!response.ok) {
@@ -58,7 +58,7 @@ export default function ExportPublishedUrlsButton({ campaignSlug }) {
 
       const urlCount = Number(response.headers.get("X-Export-Url-Count") || 0);
       showSuccessSnackbar(
-        `Exported ${urlCount} published post URL${urlCount === 1 ? "" : "s"}.`
+        `Exported ${urlCount} post URL${urlCount === 1 ? "" : "s"} (today + yesterday).`
       );
     } catch (error) {
       showErrorSnackbar(error?.message || "Failed to export published URLs");
@@ -75,7 +75,7 @@ export default function ExportPublishedUrlsButton({ campaignSlug }) {
       onClick={handleExport}
       disabled={exporting}
     >
-      {exporting ? "Exporting..." : "Export Post URLs (24h)"}
+      {exporting ? "Exporting..." : "Export Post URLs (2 days)"}
     </PrimaryButton>
   );
 }

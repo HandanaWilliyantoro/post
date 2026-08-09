@@ -11,6 +11,7 @@ import DetailControls from "@/components/campaignDetails/DetailControls";
 import DetailHeader from "@/components/campaignDetails/DetailHeader";
 import DetailTable from "@/components/campaignDetails/DetailTable";
 import ExportPublishedUrlsButton from "@/components/campaignDetails/ExportPublishedUrlsButton";
+
 import PaginationControls, {
   DEFAULT_PAGE_SIZE,
 } from "@/components/PaginationControls";
@@ -30,6 +31,7 @@ import {
 } from "@/lib/accounts/campaignAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listPostsPage } from "@/lib/post/queries/listPosts";
+import { normalizePublishHourFilter } from "@/lib/post/publishHourFilters";
 import { normalizePostStatusFilter } from "@/lib/post/statusFilters";
 import { showErrorSnackbar, showSuccessSnackbar } from "@/lib/ui/snackbar";
 import {
@@ -107,6 +109,7 @@ export async function getServerSideProps(context) {
   const page = sanitizePage(query?.page);
   const queryText = String(query?.q || "").trim();
   const publishDate = normalizeEasternDateInput(query?.publishDate);
+  const publishHour = normalizePublishHourFilter(query?.publishHour);
   const statusFilter = normalizePostStatusFilter(query?.status);
   let assignableAccounts = [];
 
@@ -128,6 +131,7 @@ export async function getServerSideProps(context) {
         page: accountsPage.page,
         pageSize: accountsPage.pageSize,
         publishDate,
+        publishHour,
         statusFilter,
         queryText,
         rows: accountsPage.items,
@@ -141,8 +145,8 @@ export async function getServerSideProps(context) {
     page,
     pageSize: DEFAULT_PAGE_SIZE,
     publishDate,
+    publishHour,
     status: statusFilter,
-    queryText,
   });
 
   const accountsCountPage = await getCampaignAccountsPage(campaign.slug, {
@@ -158,6 +162,7 @@ export async function getServerSideProps(context) {
       page: postsPage.page,
       pageSize: postsPage.pageSize,
       publishDate,
+      publishHour,
       statusFilter,
       queryText,
       rows: postsPage.items,
@@ -175,6 +180,7 @@ export default function CampaignDetailsPage({
   page,
   pageSize,
   publishDate,
+  publishHour = null,
   statusFilter,
   queryText,
   rows,
@@ -182,6 +188,9 @@ export default function CampaignDetailsPage({
 }) {
   const router = useRouter();
   const [publishDateFilter, setPublishDateFilter] = useState(publishDate);
+  const [publishHourFilter, setPublishHourFilter] = useState(
+    publishHour === null || publishHour === undefined ? "" : String(publishHour)
+  );
   const [postStatusFilter, setPostStatusFilter] = useState(statusFilter);
   const [searchText, setSearchText] = useState(queryText);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -209,6 +218,12 @@ export default function CampaignDetailsPage({
   }, [publishDate]);
 
   useEffect(() => {
+    setPublishHourFilter(
+      publishHour === null || publishHour === undefined ? "" : String(publishHour)
+    );
+  }, [publishHour]);
+
+  useEffect(() => {
     setPostStatusFilter(statusFilter);
   }, [statusFilter]);
 
@@ -216,9 +231,15 @@ export default function CampaignDetailsPage({
     const nextQuery = {
       slug: campaign.slug,
       metric,
-      ...(publishDateFilter ? { publishDate: publishDateFilter } : {}),
-      ...(postStatusFilter ? { status: postStatusFilter } : {}),
-      ...(searchText.trim() ? { q: searchText.trim() } : {}),
+      ...(isAccountsView
+        ? {
+            ...(searchText.trim() ? { q: searchText.trim() } : {}),
+          }
+        : {
+            ...(publishDateFilter ? { publishDate: publishDateFilter } : {}),
+            ...(publishHourFilter ? { publishHour: publishHourFilter } : {}),
+            ...(postStatusFilter ? { status: postStatusFilter } : {}),
+          }),
       ...overrides,
     };
 
@@ -232,6 +253,10 @@ export default function CampaignDetailsPage({
 
     if (!nextQuery.publishDate) {
       delete nextQuery.publishDate;
+    }
+
+    if (!nextQuery.publishHour) {
+      delete nextQuery.publishHour;
     }
 
     if (!nextQuery.status) {
@@ -257,23 +282,35 @@ export default function CampaignDetailsPage({
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const normalized = searchText.trim();
-      const current = String(router.query?.q || "").trim();
+      if (isAccountsView) {
+        const normalized = searchText.trim();
+        const current = String(router.query?.q || "").trim();
+
+        if (normalized === current) {
+          return;
+        }
+
+        void navigate({ q: normalized, page: 1 });
+        return;
+      }
+
       const currentPublishDate = String(router.query?.publishDate || "").trim();
+      const currentPublishHour = String(router.query?.publishHour || "").trim();
       const currentStatus = String(router.query?.status || "").trim();
+      const nextHour = String(publishHourFilter || "").trim();
 
       if (
-        normalized === current &&
         publishDateFilter === currentPublishDate &&
+        nextHour === currentPublishHour &&
         postStatusFilter === currentStatus
       ) {
         return;
       }
 
       void navigate({
-        q: normalized,
         page: 1,
         publishDate: publishDateFilter,
+        publishHour: nextHour,
         status: postStatusFilter,
       });
     }, 250);
@@ -281,7 +318,13 @@ export default function CampaignDetailsPage({
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [postStatusFilter, publishDateFilter, searchText]);
+  }, [
+    isAccountsView,
+    postStatusFilter,
+    publishDateFilter,
+    publishHourFilter,
+    searchText,
+  ]);
 
   const accountFormik = useAccountForm({
     campaignSlug: campaign.slug,
@@ -539,10 +582,12 @@ export default function CampaignDetailsPage({
           filteredCount={totalItems}
           isAccountsView={isAccountsView}
           publishDate={publishDateFilter}
+          publishHour={publishHourFilter}
           queryText={searchText}
           statusFilter={postStatusFilter}
           totalCount={totalItems}
           onPublishDateChange={setPublishDateFilter}
+          onPublishHourChange={setPublishHourFilter}
           onQueryChange={setSearchText}
           onStatusFilterChange={setPostStatusFilter}
         />

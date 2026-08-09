@@ -7,8 +7,8 @@ import { getAccounts } from "@/lib/accounts/getAccounts";
 import { findCampaignBySlug } from "@/lib/campaigns";
 import { listAllPosts } from "@/lib/post";
 import {
-  buildNextPublishDates,
   getCampaignPostIntervalHours,
+  resolveDefaultCampaignPublishAt,
 } from "@/lib/post/schedule";
 import { isoToEasternDateTimeInput } from "@/lib/utils/easternTime";
 
@@ -40,12 +40,16 @@ export async function getServerSideProps(context) {
     listAllPosts({ campaignSlug: campaign.slug }),
   ]);
   const totalAccounts = accounts.length;
-  const livePosts = posts.filter((post) => post?.localOnly !== true);
-  const nextBulkPublishAt = buildNextPublishDates({
+  const livePosts = posts.filter(
+    (post) =>
+      post?.localOnly !== true &&
+      !["failed", "cancelled"].includes(String(post?.status || "").toLowerCase())
+  );
+  // Default publish_at = 2h after last post on THIS campaign only (from 7am ET)
+  const nextBulkPublishAt = resolveDefaultCampaignPublishAt({
     campaignSlug: campaign.slug,
     existingPosts: livePosts,
-    count: 1,
-  })[0];
+  });
 
   return {
     props: {

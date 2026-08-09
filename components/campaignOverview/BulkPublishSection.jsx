@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
@@ -35,20 +35,15 @@ function isFutureEasternDateTime(value) {
   }
 }
 
-function resolveInitialPublishAt(defaultPublishAt = "", hourOffset = 24) {
+function resolveInitialPublishAt(defaultPublishAt = "", hourOffset = 2) {
   const normalizedDefault = String(defaultPublishAt || "").trim();
 
   if (normalizedDefault) {
     try {
-      const normalizedPublishAt = normalizeBulkPublishDateTimeInput(
-        normalizedDefault
-      );
-
-      if (isFutureEasternDateTime(normalizedPublishAt)) {
-        return normalizedPublishAt;
-      }
+      // SSR already computed: 2h after last post on this campaign only
+      return normalizeBulkPublishDateTimeInput(normalizedDefault);
     } catch {
-      // Fall through to an automatic campaign interval default.
+      // Fall through
     }
   }
 
@@ -72,7 +67,7 @@ const validationSchema = Yup.object({
 
 export default function BulkPublishSection({
   assignedAccountCount = 0,
-  campaignIntervalHours = 24,
+  campaignIntervalHours = 2,
   defaultPublishAt = "",
   error,
   success,
@@ -91,17 +86,35 @@ export default function BulkPublishSection({
     () => resolveInitialPublishAt(defaultPublishAt, campaignIntervalHours),
     [campaignIntervalHours, defaultPublishAt]
   );
+  const publishAtTouchedByUserOrSubmit = useRef(false);
   const formik = useFormik({
     initialValues: {
       caption: "",
       publishAt: initialPublishAt,
       videoDir: "",
-      publishMode: PUBLISH_MODE_WAVE_SCHEDULE,
+      publishMode: PUBLISH_MODE_SAME_TIME,
     },
-    enableReinitialize: true,
+    // Do not enableReinitialize — it was resetting publishAt after submit
+    // back to the stale SSR default and looked like the field "never changed".
+    enableReinitialize: false,
     validationSchema,
     onSubmit: (values, helpers) => onSubmit?.(values, helpers),
   });
+
+  useEffect(() => {
+    if (publishAtTouchedByUserOrSubmit.current) {
+      return;
+    }
+
+    if (
+      initialPublishAt &&
+      initialPublishAt !== formik.values.publishAt &&
+      !formik.touched.publishAt
+    ) {
+      formik.setFieldValue("publishAt", initialPublishAt, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync pristine default
+  }, [initialPublishAt]);
 
   useFormErrorSnackbar(formik);
 
@@ -124,8 +137,8 @@ export default function BulkPublishSection({
     campaignIntervalHours === 1 ? "" : "s"
   }`;
   const pairingCopy = isWaveSchedule
-    ? `Wave Schedule: sort videos in the folder (vid1, vid2, …). Wave 1 assigns vid1→account1 … vidN→accountN at the Publish At time. Wave 2 assigns the next N videos to the same accounts at the next ${intervalCopy} slot (7am → 3pm → 11pm ET). Supports 1000+ videos.`
-    : `Same Time: the folder must contain exactly one video per assigned account. SWA videos must be named with the target account username. Every post uses the selected publish time.`;
+    ? `Wave Schedule: sort videos in the folder (vid1, vid2, …). Wave 1 assigns vid1→account1 … vidN→accountN at the Publish At time. Wave 2 assigns the next N videos to the same accounts at the next ${intervalCopy} slot (from 7am ET). Supports 1000+ videos.`
+    : `Same Time: the folder must contain exactly one video per assigned account. SWA videos must be named with the target account username. Every post shares one publish time on the campaign ${intervalCopy} grid (from 7am ET). After each run, Publish At advances to the next slot.`;
 
   return (
     <section className="dashboard-card campaign-scheduler-card">
@@ -145,7 +158,13 @@ export default function BulkPublishSection({
         ) : null}
       </div>
 
-      <form className="campaign-scheduler-form" onSubmit={formik.handleSubmit}>
+      <form
+        className="campaign-scheduler-form"
+        onSubmit={(event) => {
+          publishAtTouchedByUserOrSubmit.current = true;
+          formik.handleSubmit(event);
+        }}
+      >
         <div className="campaign-scheduler-banner">
           <div className="campaign-scheduler-banner-copy">
             <p className="campaign-scheduler-banner-title">
@@ -190,7 +209,7 @@ export default function BulkPublishSection({
                   <strong>Wave Schedule</strong>
                   <span className="campaign-scheduler-mode-hint">
                     Round-robin accounts; each wave shares one slot from Publish
-                    At (7am / 3pm / 11pm)
+                    At (every {intervalCopy} from 7am ET)
                   </span>
                 </span>
               </label>
@@ -205,7 +224,9 @@ export default function BulkPublishSection({
                 <span>
                   <strong>Same Time</strong>
                   <span className="campaign-scheduler-mode-hint">
-                    Exactly one video per account, all at Publish At
+                    Exactly one video per account, all at one slot (every{" "}
+                    {intervalCopy} from 7am ET). Field advances after each
+                    successful queue.
                   </span>
                 </span>
               </label>
@@ -242,6 +263,7 @@ export default function BulkPublishSection({
                 min={minimumPublishAt}
                 onChange={(event) => {
                   const value = String(event.target.value || "").trim();
+                  publishAtTouchedByUserOrSubmit.current = true;
 
                   formik.setFieldValue(
                     "publishAt",

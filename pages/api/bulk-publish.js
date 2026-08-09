@@ -22,6 +22,7 @@ import {
   listProgressRuns,
   saveProgress,
 } from "@/lib/utils/progressManager";
+import { snapPublishAtToScheduleSlot } from "@/lib/post/schedule";
 import {
   easternDateTimeInputToIso,
   normalizeBulkPublishDateTimeInput,
@@ -98,6 +99,17 @@ export default async function handler(req, res) {
         }
 
         if (
+          campaignSlug &&
+          progress.campaignSlug &&
+          progress.campaignSlug !== campaignSlug
+        ) {
+          return res.status(404).json({
+            success: false,
+            error: "Bulk publish run not found for this campaign",
+          });
+        }
+
+        if (
           progress.status === "cancelling" &&
           !hasActiveBulkPublishRun(progress.runId)
         ) {
@@ -119,15 +131,35 @@ export default async function handler(req, res) {
           .json({ success: true, data: progress, runs: [progress] });
       }
 
+      if (!campaignSlug) {
+        return res.status(400).json({
+          success: false,
+          error: "campaignSlug is required",
+        });
+      }
+
       const [latestProgress, runs] = await Promise.all([
         loadLatestProgress({ campaignSlug }),
         listProgressRuns({ campaignSlug, limit }),
       ]);
+      const campaignRuns = (Array.isArray(runs) ? runs : []).filter(
+        (run) => String(run?.campaignSlug || "").trim() === campaignSlug
+      );
+      const latestForCampaign =
+        latestProgress?.runId &&
+        String(latestProgress?.campaignSlug || "").trim() === campaignSlug
+          ? latestProgress
+          : campaignRuns[0] || {
+              ...latestProgress,
+              runId: null,
+              campaignSlug,
+              status: "idle",
+            };
 
       return res.status(200).json({
         success: true,
-        data: latestProgress,
-        runs,
+        data: latestForCampaign,
+        runs: campaignRuns,
       });
     } catch (error) {
       return res
@@ -401,8 +433,11 @@ export default async function handler(req, res) {
     let publishAtIso = "";
 
     try {
-      publishAtIso = easternDateTimeInputToIso(
-        normalizeBulkPublishDateTimeInput(publishAtInput)
+      publishAtIso = snapPublishAtToScheduleSlot(
+        easternDateTimeInputToIso(
+          normalizeBulkPublishDateTimeInput(publishAtInput)
+        ),
+        campaignSlug
       );
     } catch {
       return res
